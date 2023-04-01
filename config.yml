@@ -1,0 +1,7 @@
+project_name: TuT
+authors: [eileenforwhat, simonseo, yuhsuanyeh]
+story_builder:
+  story_length: 10 # length of story in number of sentences
+ilustrator:
+  model_id: "" # ID of huggingface diffuser model
+  inference_steps: 50 # number of iterations of stable diffusion per image
