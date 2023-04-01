@@ -7,12 +7,12 @@ MODEL_ID = "stabilityai/stable-diffusion-2"
 
 
 class StableDiffusionIllustrator(object):
-    def __init__(self, config):
+    def __init__(self, model_id=None):
         # create sd pipeline
-        model_id = config.model_id
+        model_id = model_id or MODEL_ID
         self.scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
         self.pipe = StableDiffusionPipeline.from_pretrained(
-            MODEL_ID, scheduler=self.scheduler, torch_dtype=torch.float16
+            model_id, scheduler=self.scheduler, torch_dtype=torch.float16
         )
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.pipe = self.pipe.to(self.device)
@@ -27,7 +27,7 @@ class StableDiffusionIllustrator(object):
 
 if __name__ == "__main__":
     """
-    python illustrator/stable_diffusion.py
+    python -m illustrator.stable_diffusion
     """
     name = "test_story"
     prompts = [
@@ -37,5 +37,4 @@ if __name__ == "__main__":
     ]
     illustrator = StableDiffusionIllustrator()
     images = illustrator.generate(prompts)
-    import ipdb;ipdb.set_trace()
     write_illustration(images)
