@@ -4,4 +4,4 @@ scipy
 ftfy
 accelerate
 openai
-alice
+pyyaml
