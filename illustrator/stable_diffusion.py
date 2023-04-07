@@ -7,9 +7,10 @@ MODEL_ID = "stabilityai/stable-diffusion-2"
 
 
 class StableDiffusionIllustrator(object):
-    def __init__(self, model_id=None):
+    def __init__(self, **config):
         # create sd pipeline
-        model_id = model_id or MODEL_ID
+        model_id = config.get("model_id", MODEL_ID)
+        inference_steps = config.get("inference_steps", 20)
         self.scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
         self.pipe = StableDiffusionPipeline.from_pretrained(
             model_id, scheduler=self.scheduler, torch_dtype=torch.float16

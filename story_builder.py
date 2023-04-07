@@ -1,5 +1,8 @@
+from typing import List
 import openai
-openai.api_key = "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"  #os.getenv("OPENAI_API_KEY")
+
+DEFAULT_OPENAI_API_KEY = "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"  #os.getenv("OPENAI_API_KEY")
+DEFAULT_NUM_SENTENCES = 10
 
 
 class StoryBuilder(object):
@@ -12,27 +15,25 @@ class StoryBuilder(object):
     Output:
     - sentences that describe plot of story
     """
-    def __init__(self):
+    def __init__(self, **config):
         self.messages = [{
             "role": "system",
             "content": (
                 "You're a children's storyteller. ")
         }]
+        self.num_sentences = config.get("num_sentences", DEFAULT_NUM_SENTENCES)
+        openai.api_key = config.get("openai_api_key", DEFAULT_OPENAI_API_KEY)
 
-    def generate_story_plot(self, title, character_custom_key, character_name, n_sentences):
+    def generate_story_plot(self, title, customization) -> List[str]:
+        """ Returns list of story prompts.
         """
-        Returns list of sentences
-
-        :param title:
-        :param key:
-        :param character_name:
-        :param n_sentences:
-        :return:
-        """
+        # single character customization for now
+        characters = list(customization.items())[0]
+        name, custom_key = characters
         prompt = (
-            f"Tell me the story of {title} with {character_custom_key} as the main character '{character_name}', " +
-            f"without using any pronouns and in exactly {n_sentences} sentences. " +
-            f"Show me a list of {n_sentences} sentences."
+            f"Tell me the story of {title} with {custom_key} as the main character '{name}', " +
+            f"without using any pronouns and in exactly {self.num_sentences} sentences. " +
+            f"Show me a list of {self.num_sentences} sentences."
         )
         response = self.query_chatgpt(prompt)
         return [" ".join(x.split(" ")[1:]) for x in response.split("\n")]
@@ -56,12 +57,11 @@ class StoryBuilder(object):
 
 if __name__ == "__main__":
     title = "Little Red Riding Hood"
-    character_custom_key = "Simon"
-    character_name = "wolf"
+    character_customization = {
+        "wolf": "Simon"
+    }
     num_sentences = 10
 
-    story_builder = StoryBuilder()
-    plot = story_builder.generate_story_plot(
-        title, character_custom_key, character_name, num_sentences
-    )
+    story_builder = StoryBuilder(num_sentences=10)
+    plot = story_builder.generate_story_plot(title, character_customization)
     print(plot)

@@ -1,3 +1,4 @@
+from typing import Dict
 from story_builder import StoryBuilder
 from illustrator.stable_diffusion import StableDiffusionIllustrator
 import yaml
@@ -9,7 +10,9 @@ def create_illustrator(config):
     illustrator = StableDiffusionIllustrator(**config)
     return illustrator
 
+
 def create_story_builder(config):
+    print("config:", config)
     story_builder = StoryBuilder(**config)
     return story_builder
 
@@ -18,31 +21,25 @@ class TellUrTalePipeline(object):
     def __init__(self, config):
         self.config = config
         self.story_builder = create_story_builder(config["story_builder"])
-        self.illustrator = create_illustrator(config["ilustrator"])
+        self.illustrator = create_illustrator(config["illustrator"])
 
-    def run_tut(self):
-        # story_name, story_prompts = self.story_builder.interactive_build()
-        story_name = "test_story"
-        story_prompts = [
-            "a momma bear walked up to a monkey.",
-            "the momma bear and monkey skied down a hill.",
-            "the momma bear and monkey fell down.",
-        ]
+    def run_tut(self, story_title: str, customization: Dict):
+        story_prompts = self.story_builder.generate_story_plot(story_title, customization)
         story_images = self.illustrator.generate(story_prompts)
-        # return self.illustrator.write_illustration(story_images)
-        return story_images
-
+        return story_prompts, story_images
 
 
 if __name__ == '__main__':
-    with open('config.yml', 'r') as config_file:
+    with open('config/test_story.yml', 'r') as config_file:
         config: dict = yaml.safe_load(config_file)
     print(f"Running {config['project_name']}...")
 
+    title = "Little Red Riding Hood"
+    character_customization = {
+        "wolf": "Simon"
+    }
     pipeline = TellUrTalePipeline(config)
-
-    # uncomment when storybuilder becomes interactive
-    # while True:
-    #     pipeline.run_tut()
-    
-    pipeline.run_tut()
+    pipeline.run_tut(
+        story_title=title,
+        customization=character_customization
+    )
