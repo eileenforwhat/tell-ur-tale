@@ -1,3 +1,4 @@
+from illustrator.utils import write_illustration
 from story_builder import StoryBuilder
 from illustrator.stable_diffusion import StableDiffusionIllustrator
 import yaml
@@ -29,7 +30,8 @@ class TellUrTalePipeline(object):
             "the momma bear and monkey fell down.",
         ]
         story_images = self.illustrator.generate(story_prompts)
-        self.illustrator.write_illustration(story_images)
+        assert self.config['output_dir'] is not None and self.config['output_dir'] != ""
+        write_illustration(story_images, output_dir=self.config['output_dir'])
         return story_images
 
 

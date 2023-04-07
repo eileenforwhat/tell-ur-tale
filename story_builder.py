@@ -12,7 +12,7 @@ class StoryBuilder(object):
     Output:
     - sentences that describe plot of story
     """
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.messages = [{
             "role": "system",
             "content": (
