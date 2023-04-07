@@ -44,5 +44,6 @@ if __name__ == '__main__':
     pipeline = TellUrTalePipeline(config)
     pipeline.run_tut(
         story_title=title,
-        customization=character_customization
+        customization=character_customization,
+        write_to_output_dir='output'
     )

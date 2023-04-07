@@ -36,7 +36,10 @@ class StoryBuilder(object):
             f"Show me a list of {self.num_sentences} sentences."
         )
         response = self.query_chatgpt(prompt)
-        return [" ".join(x.split(" ")[1:]) for x in response.split("\n")]
+        plot = [" ".join(x.split(" ")[1:]) for x in response.split("\n")]
+        print(plot)
+        print(f"number of sentences generated = {len(plot)}")
+        return plot
 
     def get_characters_for_story(self, n_characters):
         prompt = f"""
