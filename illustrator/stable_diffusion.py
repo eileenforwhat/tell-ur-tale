@@ -22,7 +22,7 @@ class StableDiffusionIllustrator(object):
         generated_images = []
         for idx, prompt in enumerate(prompts):
             image = self.pipe(prompt).images[0]
-            generated_images.append(image)
+            generated_images.append([idx, prompt, image])
         return generated_images
 
 

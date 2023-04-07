@@ -1,6 +1,7 @@
 from typing import Dict
 from story_builder import StoryBuilder
 from illustrator.stable_diffusion import StableDiffusionIllustrator
+from illustrator.utils import write_illustration
 import yaml
 
 
@@ -23,9 +24,11 @@ class TellUrTalePipeline(object):
         self.story_builder = create_story_builder(config["story_builder"])
         self.illustrator = create_illustrator(config["illustrator"])
 
-    def run_tut(self, story_title: str, customization: Dict):
+    def run_tut(self, story_title: str, customization: Dict, write_to_output_dir=None):
         story_prompts = self.story_builder.generate_story_plot(story_title, customization)
         story_images = self.illustrator.generate(story_prompts)
+        if write_to_output_dir:
+            write_illustration(story_images, output_dir=write_to_output_dir)
         return story_prompts, story_images
 
 
