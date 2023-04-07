@@ -2,28 +2,32 @@ from typing import List
 import torch
 from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler
 from illustrator.utils import write_illustration
+from illustrator.utils import StoryPage
 
 MODEL_ID = "stabilityai/stable-diffusion-2"
 
 
 class StableDiffusionIllustrator(object):
     def __init__(self, **config):
-        # create sd pipeline
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
         model_id = config.get("model_id", MODEL_ID)
-        inference_steps = config.get("inference_steps", 20)
+        inference_steps = config.get("inference_steps", 5)
         self.scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
+        self.scheduler.set_timesteps(inference_steps, self.device)
+
         self.pipe = StableDiffusionPipeline.from_pretrained(
             model_id, scheduler=self.scheduler, torch_dtype=torch.float16
         )
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.pipe = self.pipe.to(self.device)
 
-    def generate(self, prompts: List[str]) -> List[str]:
-        generated_images = []
+    def generate(self, prompts: List[str]) -> List[StoryPage]:
+        generated_pages = []
         for idx, prompt in enumerate(prompts):
             image = self.pipe(prompt).images[0]
-            generated_images.append([idx, prompt, image])
-        return generated_images
+            page = StoryPage(page_num=idx, text=prompt, image=image)
+            generated_pages.append(page)
+        return generated_pages
 
 
 if __name__ == "__main__":
@@ -36,6 +40,6 @@ if __name__ == "__main__":
         "the momma bear and monkey skied down a hill.",
         "the momma bear and monkey fell down.",
     ]
-    illustrator = StableDiffusionIllustrator()
+    illustrator = StableDiffusionIllustrator()  # default config
     images = illustrator.generate(prompts)
     write_illustration(images)
