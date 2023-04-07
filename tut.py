@@ -29,7 +29,7 @@ class TellUrTalePipeline(object):
             "the momma bear and monkey fell down.",
         ]
         story_images = self.illustrator.generate(story_prompts)
-        # return self.illustrator.write_illustration(story_images)
+        self.illustrator.write_illustration(story_images)
         return story_images
 
 
