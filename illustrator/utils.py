@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 from PIL import Image
 
-DEFAULT_OUTPUT_DIR = "output"
+DEFAULT_OUTPUT_DIR = "static/output"
 
 
 @dataclass
@@ -19,3 +19,4 @@ def write_illustration(generated_pages, output_dir=DEFAULT_OUTPUT_DIR):
         tag = "{0:03d}".format(idx)
         output_fn = f"{tag}_{prompt.strip('.')}.png"
         image.save(os.path.join(output_dir, output_fn))
+    return output_dir
