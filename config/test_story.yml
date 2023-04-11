@@ -6,3 +6,6 @@ story_builder:
 illustrator:
   model_id: "stabilityai/stable-diffusion-2"  # ID of huggingface diffuser model
   inference_steps: 50  # number of iterations of stable diffusion per image
+  custom_type: "dreambooth"
+  custom_args:
+    ...

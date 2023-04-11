@@ -28,18 +28,16 @@ class TellUrTalePipeline(object):
     def run_tut(self,
                 story_title: str,
                 custom_characters: List[CustomCharacter],
-                custom_type=None,
                 write_to_output_dir=None):
         story_prompts = self.story_builder.generate_story_plot(story_title, custom_characters)
-        if custom_type is not None:
-            self.illustrator = self.apply_customization(custom_characters, custom_type)
+        self.illustrator = self.apply_customization(custom_characters)
         story_images = self.illustrator.generate(story_prompts)
         if write_to_output_dir:
             write_illustration(story_images, output_dir=write_to_output_dir)
         return story_prompts, story_images
 
-    def apply_customization(self, custom_characters: List[CustomCharacter], custom_type: str = "dreambooth"):
-        self.illustrator.customize(custom_characters, custom_type=custom_type)
+    def apply_customization(self, custom_characters: List[CustomCharacter]):
+        self.illustrator.customize(custom_characters)
         return self.illustrator
 
 
@@ -56,6 +54,5 @@ if __name__ == '__main__':
     pipeline.run_tut(
         story_title=title,
         custom_characters=custom_characters,
-        custom_type="dreambooth",
         write_to_output_dir='output'
     )

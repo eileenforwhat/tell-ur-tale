@@ -4,6 +4,8 @@ import torch
 from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler
 from utils import write_illustration
 from utils import StoryPage, CustomCharacter
+from customization.textual_inversion import TextualInversionTrainer
+from customization.dream_booth import DreamBoothTrainer
 
 MODEL_ID = "stabilityai/stable-diffusion-2"
 
@@ -17,22 +19,26 @@ class StableDiffusionIllustrator(object):
         self.scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
         self.scheduler.set_timesteps(inference_steps, self.device)
 
-        self.pipe = StableDiffusionPipeline.from_pretrained(
-            model_id, scheduler=self.scheduler, torch_dtype=torch.float16
-        )
-        self.pipe = self.pipe.to(self.device)
+        self.pipe = None
+        if config["custom_type"] == "dreambooth":
+            self.customizer = DreamBoothTrainer(config["custom_args"])
+        elif config["custom_type"] == "textual_inversion":
+            self.customizer = TextualInversionTrainer(config["custom_args"])
+        elif config["custom_type"] == "baseline":
+            self.pipe = StableDiffusionPipeline.from_pretrained(
+                model_id, scheduler=self.scheduler, torch_dtype=torch.float16
+            )
+            self.pipe = self.pipe.to(self.device)
+        else:
+            raise ValueError(f"custom_type: {config['custom_type']} is not supported")
 
-    def customize(self, custom_characters: List[CustomCharacter], custom_type: str = "dreambooth"):
+    def customize(self, custom_characters: List[CustomCharacter]):
         """
         Train custom (finetuned) model using custom_type={dreambooth, textual_inversion}
             and save to self.pipe
         """
-        if custom_type == "dreambooth":
-            pass
-        elif custom_type == "textual_inversion":
-            pass
-        else:
-            raise ValueError(f"custom_type: {custom_type} is not supported")
+        self.pipe = self.customizer.train(custom_characters)
+        self.pipe = self.pipe.to(self.device)
 
     def generate(self, prompts: List[str]) -> List[StoryPage]:
         generated_pages = []
