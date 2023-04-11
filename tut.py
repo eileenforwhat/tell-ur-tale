@@ -1,3 +1,4 @@
+from time import time
 from typing import Dict
 from typing import List
 from story_builder import StoryBuilder
@@ -54,5 +55,5 @@ if __name__ == '__main__':
     pipeline.run_tut(
         story_title=title,
         custom_characters=custom_characters,
-        write_to_output_dir='output'
+        write_to_output_dir=f"static/output/tmp{int(time())}"
     )

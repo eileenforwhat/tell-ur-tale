@@ -20,7 +20,7 @@ class StoryBuilder(object):
         self.messages = [{
             "role": "system",
             "content": (
-                "You're a children's storyteller. ")
+                "you are a storyteller who tells children's stories. You don't use pronouns. you are good at counting  numbers. you will focus on getting the number of sentences correct. be descriptive about appearance of character and background. answer the following question.")
         }]
         self.num_sentences = config.get("num_sentences", DEFAULT_NUM_SENTENCES)
         openai.api_key = config.get("openai_api_key", DEFAULT_OPENAI_API_KEY)
@@ -35,7 +35,7 @@ class StoryBuilder(object):
         prompt = (
             f"Tell me the story of {title} with {custom_key} as the main character '{name}', " +
             f"without using any pronouns and in exactly {self.num_sentences} sentences. " +
-            f"Show me a list of {self.num_sentences} sentences."
+            f"Show me a numbered list of exactly {self.num_sentences} sentences."
         )
         response = self.query_chatgpt(prompt)
         plot = [" ".join(x.split(" ")[1:]) for x in response.split("\n")]
