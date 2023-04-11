@@ -13,6 +13,13 @@ class StoryPage:
     image: Image
 
 
+@dataclass
+class CustomCharacter:
+    orig_name: str  # name of the character in the original story
+    custom_name: str  # custom name of the character, ex. Simon
+    custom_img_dir: str  # dir that contains images we want to customize the character to
+
+
 def write_illustration(generated_pages: List[StoryPage], output_dir=DEFAULT_OUTPUT_DIR):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)

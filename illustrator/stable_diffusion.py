@@ -1,8 +1,9 @@
 from typing import List
+from typing import Dict
 import torch
 from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler
-from illustrator.utils import write_illustration
-from illustrator.utils import StoryPage
+from utils import write_illustration
+from utils import StoryPage, CustomCharacter
 
 MODEL_ID = "stabilityai/stable-diffusion-2"
 
@@ -20,6 +21,18 @@ class StableDiffusionIllustrator(object):
             model_id, scheduler=self.scheduler, torch_dtype=torch.float16
         )
         self.pipe = self.pipe.to(self.device)
+
+    def customize(self, custom_characters: List[CustomCharacter], custom_type: str = "dreambooth"):
+        """
+        Train custom (finetuned) model using custom_type={dreambooth, textual_inversion}
+            and save to self.pipe
+        """
+        if custom_type == "dreambooth":
+            pass
+        elif custom_type == "textual_inversion":
+            pass
+        else:
+            raise ValueError(f"custom_type: {custom_type} is not supported")
 
     def generate(self, prompts: List[str]) -> List[StoryPage]:
         generated_pages = []

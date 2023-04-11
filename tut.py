@@ -1,7 +1,8 @@
 from typing import Dict
+from typing import List
 from story_builder import StoryBuilder
 from illustrator.stable_diffusion import StableDiffusionIllustrator
-from illustrator.utils import write_illustration
+from utils import write_illustration, CustomCharacter
 import yaml
 
 
@@ -24,12 +25,22 @@ class TellUrTalePipeline(object):
         self.story_builder = create_story_builder(config["story_builder"])
         self.illustrator = create_illustrator(config["illustrator"])
 
-    def run_tut(self, story_title: str, customization: Dict, write_to_output_dir=None):
-        story_prompts = self.story_builder.generate_story_plot(story_title, customization)
+    def run_tut(self,
+                story_title: str,
+                custom_characters: List[CustomCharacter],
+                custom_type=None,
+                write_to_output_dir=None):
+        story_prompts = self.story_builder.generate_story_plot(story_title, custom_characters)
+        if custom_type is not None:
+            self.illustrator = self.apply_customization(custom_characters, custom_type)
         story_images = self.illustrator.generate(story_prompts)
         if write_to_output_dir:
             write_illustration(story_images, output_dir=write_to_output_dir)
         return story_prompts, story_images
+
+    def apply_customization(self, custom_characters: List[CustomCharacter], custom_type: str = "dreambooth"):
+        self.illustrator.customize(custom_characters, custom_type=custom_type)
+        return self.illustrator
 
 
 if __name__ == '__main__':
@@ -38,12 +49,13 @@ if __name__ == '__main__':
     print(f"Running {config['project_name']}...")
 
     title = "Little Red Riding Hood"
-    character_customization = {
-        "wolf": "Simon"
-    }
+    custom_characters = [
+        CustomCharacter(orig_name="wolf", custom_name="Aspen", custom_img_dir="sample_images/aspen")
+    ]
     pipeline = TellUrTalePipeline(config)
     pipeline.run_tut(
         story_title=title,
-        customization=character_customization,
+        custom_characters=custom_characters,
+        custom_type="dreambooth",
         write_to_output_dir='output'
     )

@@ -1,5 +1,6 @@
 from typing import List
 import openai
+from utils import CustomCharacter
 
 DEFAULT_OPENAI_API_KEY = "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"  #os.getenv("OPENAI_API_KEY")
 DEFAULT_NUM_SENTENCES = 10
@@ -24,12 +25,13 @@ class StoryBuilder(object):
         self.num_sentences = config.get("num_sentences", DEFAULT_NUM_SENTENCES)
         openai.api_key = config.get("openai_api_key", DEFAULT_OPENAI_API_KEY)
 
-    def generate_story_plot(self, title, customization) -> List[str]:
+    def generate_story_plot(self, title, custom_characters: List[CustomCharacter]) -> List[str]:
         """ Returns list of story prompts.
         """
         # single character customization for now
-        characters = list(customization.items())[0]
-        name, custom_key = characters
+        assert len(custom_characters) == 1
+        character = custom_characters[0]
+        name, custom_key = character.orig_name, character.custom_name
         prompt = (
             f"Tell me the story of {title} with {custom_key} as the main character '{name}', " +
             f"without using any pronouns and in exactly {self.num_sentences} sentences. " +
@@ -60,11 +62,11 @@ class StoryBuilder(object):
 
 if __name__ == "__main__":
     title = "Little Red Riding Hood"
-    character_customization = {
-        "wolf": "Simon"
-    }
+    custom_characters = [
+        CustomCharacter(orig_name="wolf", custom_name="Aspen", custom_img_dir="sample_images/aspen")
+    ]
     num_sentences = 10
 
     story_builder = StoryBuilder(num_sentences=10)
-    plot = story_builder.generate_story_plot(title, character_customization)
+    plot = story_builder.generate_story_plot(title, custom_characters)
     print(plot)
