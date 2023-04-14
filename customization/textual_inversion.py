@@ -12,7 +12,6 @@ import transformers
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 
-# TODO: remove and import from diffusers.utils when the new version of diffusers is released
 from packaging import version
 from PIL import Image
 from torch.utils.data import Dataset
@@ -27,31 +26,7 @@ from diffusers import (
     StableDiffusionPipeline,
     UNet2DConditionModel,
 )
-from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
-
-
-if version.parse(version.parse(PIL.__version__).base_version) >= version.parse("9.1.0"):
-    PIL_INTERPOLATION = {
-        "linear": PIL.Image.Resampling.BILINEAR,
-        "bilinear": PIL.Image.Resampling.BILINEAR,
-        "bicubic": PIL.Image.Resampling.BICUBIC,
-        "lanczos": PIL.Image.Resampling.LANCZOS,
-        "nearest": PIL.Image.Resampling.NEAREST,
-    }
-else:
-    PIL_INTERPOLATION = {
-        "linear": PIL.Image.LINEAR,
-        "bilinear": PIL.Image.BILINEAR,
-        "bicubic": PIL.Image.BICUBIC,
-        "lanczos": PIL.Image.LANCZOS,
-        "nearest": PIL.Image.NEAREST,
-    }
-# ------------------------------------------------------------------------------
-
-
-# Will error if the minimal version of diffusers is not installed. Remove at your own risks.
-check_min_version("0.15.0.dev0")
 
 logger = get_logger(__name__)
 
@@ -64,26 +39,13 @@ def save_progress(text_encoder, placeholder_token_id, accelerator, placeholder_t
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Simple example of a training script.")
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
         default=None,
         required=True,
         help="Path to pretrained model or model identifier from huggingface.co/models.",
-    )
-    parser.add_argument(
-        "--train_data_dir", type=str, default=None, required=True, help="A folder containing the training data."
-    )
-    parser.add_argument(
-        "--placeholder_token",
-        type=str,
-        default=None,
-        required=True,
-        help="A token to use as a placeholder for the concept.",
-    )
-    parser.add_argument(
-        "--initializer_token", type=str, default=None, required=True, help="A token to use as initializer word."
     )
     parser.add_argument("--learnable_property", type=str, default="object", help="Choose between 'object' and 'style'")
     parser.add_argument(
@@ -95,42 +57,18 @@ def parse_args():
     parser.add_argument(
         "--train_batch_size", type=int, default=16, help="Batch size (per device) for the training dataloader."
     )
-    parser.add_argument("--num_train_epochs", type=int, default=100)
-    parser.add_argument(
-        "--learning_rate",
-        type=float,
-        default=1e-4,
-        help="Initial learning rate (after the potential warmup period) to use.",
-    )
-    parser.add_argument(
-        "--logging_dir",
-        type=str,
-        default="logs",
-        help=(
-            "[TensorBoard](https://www.tensorflow.org/tensorboard) log directory. Will default to"
-            " *output_dir/runs/**CURRENT_DATETIME_HOSTNAME***."
-        ),
-    )
+    parser.add_argument("--num_train_steps", type=int, default=100)
+    parser.add_argument("--learning_rate", type=float, default=1e-4)
     parser.add_argument(
         "--mixed_precision",
         type=str,
         default="no",
-        choices=["no", "fp16", "bf16"],
-        help=(
-            "Whether to use mixed precision. Choose"
-            "between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >= 1.10."
-            "and an Nvidia Ampere GPU."
-        ),
+        choices=["no", "fp16"],
     )
     parser.add_argument(
         "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
     )
-
     args = parser.parse_args()
-
-    if args.train_data_dir is None:
-        raise ValueError("You must specify a train data directory.")
-
     return args
 
 
@@ -194,7 +132,7 @@ class TextualInversionDataset(Dataset):
         tokenizer,
         learnable_property="object",  # [object, style]
         size=512,
-        repeats=100,
+        repeats=1,
         interpolation="bicubic",
         flip_p=0.5,
         set="train",
@@ -217,13 +155,7 @@ class TextualInversionDataset(Dataset):
         if set == "train":
             self._length = self.num_images * repeats
 
-        self.interpolation = {
-            "linear": PIL_INTERPOLATION["linear"],
-            "bilinear": PIL_INTERPOLATION["bilinear"],
-            "bicubic": PIL_INTERPOLATION["bicubic"],
-            "lanczos": PIL_INTERPOLATION["lanczos"],
-        }[interpolation]
-
+        self.interpolation = PIL.Image.BICUBIC
         self.templates = imagenet_style_templates_small if learnable_property == "style" else imagenet_templates_small
         self.flip_transform = transforms.RandomHorizontalFlip(p=self.flip_p)
 
@@ -275,13 +207,14 @@ class TextualInversionDataset(Dataset):
 
 class TextualInversionTrainer(object):
     """
-    https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
+    Adapted from:
+        https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
     """
     def __init__(self, args):
         self.accelerator = Accelerator(
             mixed_precision=args.mixed_precision,
             log_with=["tensorboard"],
-            logging_dir=args.logging_dir
+            project_dir=f"{args.output_dir}/logs"
         )
 
         # Make one log on every process with the configuration for debugging.
@@ -296,7 +229,6 @@ class TextualInversionTrainer(object):
 
         # Handle the repository creation
         os.makedirs(args.output_dir, exist_ok=True)
-        os.makedirs(args.logging_dir, exist_ok=True)
 
         # Load tokenizer
         self.tokenizer = CLIPTokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer")
@@ -306,13 +238,6 @@ class TextualInversionTrainer(object):
         self.text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder")
         self.vae = AutoencoderKL.from_pretrained(args.pretrained_model_name_or_path, subfolder="vae")
         self.unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="unet")
-
-        if args.gradient_checkpointing:
-            # Keep unet in train mode if we are using gradient checkpointing to save memory.
-            # The dropout cannot be != 0 so it doesn't matter if we are in eval or train mode.
-            self.unet.train()
-            self.text_encoder.gradient_checkpointing_enable()
-            self.unet.enable_gradient_checkpointing()
 
         if args.enable_xformers_memory_efficient_attention:
             if is_xformers_available():
@@ -334,14 +259,13 @@ class TextualInversionTrainer(object):
         )
 
         self.args = args
+        print("Initialization finished.")
 
-    def train(self, placeholder_token, initializer_token):
+    def train(self, placeholder_token, initializer_token, train_data_dir):
         """
-
         :return:  StableDiffusionPipeline
-
         """
-        # Add the placeholder token in tokenizer
+        print("Add the placeholder token in tokenizer")
         num_added_tokens = self.tokenizer.add_tokens(placeholder_token)
         if num_added_tokens == 0:
             raise ValueError(
@@ -357,24 +281,24 @@ class TextualInversionTrainer(object):
         initializer_token_id = token_ids[0]
         placeholder_token_id = self.tokenizer.convert_tokens_to_ids(placeholder_token)
 
-        # Resize the token embeddings as we are adding new special tokens to the tokenizer
+        print("Resize the token embeddings as we are adding new special tokens to the tokenizer")
         self.text_encoder.resize_token_embeddings(len(self.tokenizer))
 
-        # Initialise the newly added placeholder token with the embeddings of the initializer token
+        print("Initialise the newly added placeholder token with the embeddings of the initializer token")
         token_embeds = self.text_encoder.get_input_embeddings().weight.data
         token_embeds[placeholder_token_id] = token_embeds[initializer_token_id]
 
-        # Freeze vae and unet
+        print("Freeze vae and unet")
         self.vae.requires_grad_(False)
         self.unet.requires_grad_(False)
-        # Freeze all parameters except for the token embeddings in text encoder
+        print("Freeze all parameters except for the token embeddings in text encoder")
         self.text_encoder.text_model.encoder.requires_grad_(False)
         self.text_encoder.text_model.final_layer_norm.requires_grad_(False)
         self.text_encoder.text_model.embeddings.position_embedding.requires_grad_(False)
 
-        # Dataset and DataLoaders creation:
+        print("Dataset and DataLoaders creation:")
         train_dataset = TextualInversionDataset(
-            data_root=self.args.train_data_dir,
+            data_root=train_data_dir,
             tokenizer=self.tokenizer,
             placeholder_token=placeholder_token,
             learnable_property=self.args.learnable_property,
@@ -384,7 +308,7 @@ class TextualInversionTrainer(object):
             train_dataset, batch_size=self.args.train_batch_size, shuffle=True, num_workers=4
         )
 
-        # Prepare everything with our `accelerator`.
+        print("Prepare everything with our `accelerator`.")
         self.text_encoder, self.optimizer, train_dataloader = self.accelerator.prepare(
             self.text_encoder, self.optimizer, train_dataloader
         )
@@ -395,69 +319,76 @@ class TextualInversionTrainer(object):
         if self.accelerator.mixed_precision == "fp16":
             weight_dtype = torch.float16
 
-        # Move vae and unet to device and cast to weight_dtype
+        print("Move vae and unet to device and cast to weight_dtype")
         self.unet.to(self.accelerator.device, dtype=weight_dtype)
         self.vae.to(self.accelerator.device, dtype=weight_dtype)
 
         logger.info("***** Running training *****")
         logger.info(f"  Num examples = {len(train_dataset)}")
-        logger.info(f"  Num Epochs = {self.args.num_train_epochs}")
+        logger.info(f"  Num train steps = {self.args.num_train_steps}")
         logger.info(f"  Instantaneous batch size per device = {self.args.train_batch_size}")
-        global_step = 0
 
-        # keep original embeddings as reference
+        print("keep original embeddings as reference")
         orig_embeds_params = self.accelerator.unwrap_model(
             self.text_encoder).get_input_embeddings().weight.data.clone()
 
-        for epoch in tqdm(range(self.args.num_train_epochs)):
-            self.text_encoder.train()
-            for step, batch in enumerate(train_dataloader):
-                with self.accelerator.accumulate(self.text_encoder):
-                    # Convert images to latent space
-                    latents = self.vae.encode(batch["pixel_values"].to(dtype=weight_dtype)).latent_dist.sample().detach()
-                    latents = latents * self.vae.config.scaling_factor
+        self.text_encoder.train()
+        dataloader_iter = iter(train_dataloader)
+        for step in tqdm(range(self.args.num_train_steps)):
+            try:
+                batch = next(dataloader_iter)
+            except StopIteration:
+                dataloader_iter = iter(train_dataloader)
+                batch = next(dataloader_iter)
 
-                    # Sample noise that we'll add to the latents
-                    noise = torch.randn_like(latents)
-                    bsz = latents.shape[0]
-                    # Sample a random timestep for each image
-                    timesteps = torch.randint(0, self.noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
-                    timesteps = timesteps.long()
+            with self.accelerator.accumulate(self.text_encoder):
+                # Convert images to latent space
+                latents = self.vae.encode(
+                    batch["pixel_values"].to(dtype=weight_dtype)).latent_dist.sample().detach()
+                latents = latents * self.vae.config.scaling_factor
 
-                    # Add noise to the latents according to the noise magnitude at each timestep
-                    # (this is the forward diffusion process)
-                    noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
+                # Sample noise that we'll add to the latents
+                noise = torch.randn_like(latents)
+                bsz = latents.shape[0]
+                # Sample a random timestep for each image
+                timesteps = torch.randint(
+                    0, self.noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
+                timesteps = timesteps.long()
 
-                    # Get the text embedding for conditioning
-                    encoder_hidden_states = self.text_encoder(batch["input_ids"])[0].to(dtype=weight_dtype)
+                # Add noise to the latents according to the noise magnitude at each timestep
+                # (this is the forward diffusion process)
+                noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
 
-                    # Predict the noise residual
-                    model_pred = self.unet(noisy_latents, timesteps, encoder_hidden_states).sample
+                # Get the text embedding for conditioning
+                encoder_hidden_states = self.text_encoder(batch["input_ids"])[0].to(dtype=weight_dtype)
 
-                    # Get the target for loss depending on the prediction type
-                    if self.noise_scheduler.config.prediction_type == "epsilon":
-                        target = noise
-                    elif self.noise_scheduler.config.prediction_type == "v_prediction":
-                        target = self.noise_scheduler.get_velocity(latents, noise, timesteps)
-                    else:
-                        raise ValueError(f"Unknown prediction type {self.noise_scheduler.config.prediction_type}")
+                # Predict the noise residual
+                model_pred = self.unet(noisy_latents, timesteps, encoder_hidden_states).sample
 
-                    loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+                # Get the target for loss depending on the prediction type
+                if self.noise_scheduler.config.prediction_type == "epsilon":
+                    target = noise
+                elif self.noise_scheduler.config.prediction_type == "v_prediction":
+                    target = self.noise_scheduler.get_velocity(latents, noise, timesteps)
+                else:
+                    raise ValueError(f"Unknown prediction type {self.noise_scheduler.config.prediction_type}")
 
-                    self.accelerator.backward(loss)
+                loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
 
-                    self.optimizer.step()
-                    self.optimizer.zero_grad()
+                self.accelerator.backward(loss)
 
-                    # Let's make sure we don't update any embedding weights besides the newly added token
-                    index_no_updates = torch.arange(len(self.tokenizer)) != placeholder_token_id
-                    with torch.no_grad():
-                        self.accelerator.unwrap_model(self.text_encoder).get_input_embeddings().weight[
-                            index_no_updates
-                        ] = orig_embeds_params[index_no_updates]
+                self.optimizer.step()
+                self.optimizer.zero_grad()
 
-                logs = {"loss": loss.detach().item()}
-                self.accelerator.log(logs, step=global_step)
+                # Let's make sure we don't update any embedding weights besides the newly added token
+                index_no_updates = torch.arange(len(self.tokenizer)) != placeholder_token_id
+                with torch.no_grad():
+                    self.accelerator.unwrap_model(self.text_encoder).get_input_embeddings().weight[
+                        index_no_updates
+                    ] = orig_embeds_params[index_no_updates]
+
+            # logs = {"loss": loss.detach().item()}
+            # self.accelerator.log(logs, step=global_step)
 
         # Create the pipeline using the trained modules and save it.
         pipeline = StableDiffusionPipeline.from_pretrained(
@@ -477,11 +408,16 @@ class TextualInversionTrainer(object):
 
 
 if __name__ == "__main__":
+    """
+    python customization/textual_inversion.py --pretrained_model_name_or_path stabilityai/stable-diffusion-2 \
+      --enable_xformers_memory_efficient_attention --train_batch_size 4  --num_train_steps 20
+    """
     args = parse_args()
     trainer = TextualInversionTrainer(args)
     pipe = trainer.train(
         placeholder_token="*A",
-        initializer_token="wolf"
+        initializer_token="wolf",
+        train_data_dir="sample_images/aspen"
     )
 
     image = pipe("*A wolf met Little Red Riding Hood in the woods.").images[0]
