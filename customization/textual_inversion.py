@@ -345,15 +345,19 @@ if __name__ == "__main__":
     python -m customization.textual_inversion --enable_xformers_memory_efficient_attention --train_batch_size 4  --max_train_steps 2000
     """
     parser = argparse.ArgumentParser()
+
     # train args
     parser.add_argument("--learning_rate", type=float, required=False, default=1e-4)
     parser.add_argument("--train_batch_size", type=int, required=False, default=16)
     parser.add_argument("--max_train_steps", type=int, required=False, default=100)
+
     # more efficient training
     parser.add_argument("--mixed_precision", type=str, required=False, default="fp16")
     parser.add_argument("--enable_xformers_memory_efficient_attention", action="store_true")
+
     # logging
     parser.add_argument("--logging_dir", type=str, required=False, default="runs/text-inversion-model")
+
     args = parser.parse_args()
     args = vars(args)  # make into dictionary
 
