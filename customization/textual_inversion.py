@@ -382,11 +382,11 @@ if __name__ == "__main__":
     prompt = f"The {placeholder_token} met the girl wearing a red hood in the woods."
     pipe = StableDiffusionPipeline.from_pretrained(args["logging_dir"], torch_dtype=weight_dtype).to(device)
     image = pipe(prompt).images[0]
-    image.save(f"test/{prompt.strip('.')}.png")
+    image.save(f"test/inversion_{prompt.strip('.')}.png")
 
     # without customization, for comparison
     prompt = "The wolf met the girl wearing a red hood in the woods."
     pipe = StableDiffusionPipeline.from_pretrained(base_model_id)
     pipe = pipe.to(device)
     image = pipe(prompt).images[0]
-    image.save(f"test/{prompt.strip('.')}.png")
+    image.save(f"test/baseline_{prompt.strip('.')}.png")

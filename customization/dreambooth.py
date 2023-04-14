@@ -309,7 +309,8 @@ class DreamBoothTrainer(object):
 
 if __name__ == "__main__":
     """
-    python -m customization.dreambooth --enable_xformers_memory_efficient_attention --train_batch_size 4  --max_train_steps 2000
+    python -m customization.dreambooth --train_batch_size 1  --max_train_steps 1000 \
+        --enable_xformers_memory_efficient_attention
     """
     parser = argparse.ArgumentParser()
 
@@ -320,7 +321,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether to train the text encoder. If set, the text encoder should be float32 precision.",
     )
-    parser.add_argument("--train_batch_size", type=int, required=False, default=16)
+    parser.add_argument("--train_batch_size", type=int, required=False, default=4)
     parser.add_argument("--max_train_steps", type=int, required=False, default=100)
 
     # more efficient training
@@ -357,11 +358,11 @@ if __name__ == "__main__":
     prompt = f"The {placeholder_token} met the girl wearing a red hood in the woods."
     pipe = StableDiffusionPipeline.from_pretrained(args["logging_dir"], torch_dtype=weight_dtype).to(device)
     image = pipe(prompt).images[0]
-    image.save(f"test/{prompt.strip('.')}.png")
+    image.save(f"test/dreambooth_{prompt.strip('.')}.png")
 
     # without customization, for comparison
     prompt = "The wolf met the girl wearing a red hood in the woods."
     pipe = StableDiffusionPipeline.from_pretrained(base_model_id)
     pipe = pipe.to(device)
     image = pipe(prompt).images[0]
-    image.save(f"test/{prompt.strip('.')}.png")
+    image.save(f"test/baseline_{prompt.strip('.')}.png")
