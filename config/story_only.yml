@@ -1,0 +1,5 @@
+project_name: TuT
+authors: [eileenforwhat, simonseo, yuhsuanyeh]
+story_builder:
+  num_sentences: 10  # length of story in number of sentences
+  openai_api_key: "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"

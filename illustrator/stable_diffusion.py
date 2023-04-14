@@ -18,9 +18,9 @@ class StableDiffusionIllustrator(object):
         inference_steps = config.get("inference_steps", 5)
         self.scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
         self.scheduler.set_timesteps(inference_steps, self.device)
-        self.customizer = None
         self.config = config
 
+        self.customizer = None
         self.pipe = None
         if config["custom_type"] == "dreambooth":
             self.customizer = DreamBoothTrainer(**config["custom_args"])
@@ -36,8 +36,7 @@ class StableDiffusionIllustrator(object):
 
     def customize(self, custom_characters: List[CustomCharacter]):
         """
-        Train custom (finetuned) model using custom_type={dreambooth, textual_inversion}
-            and save to self.pipe
+        Train custom (finetuned) model using custom_type={dreambooth, textual_inversion} and save to self.pipe
         """
         if self.customizer is not None:
             self.pipe = self.customizer.train(custom_characters)
@@ -61,7 +60,7 @@ if __name__ == "__main__":
     python -m illustrator.stable_diffusion
     """
     import yaml
-    with open('config/test_illustrator.yml', 'r') as config_file:
+    with open('config/openjourney.yml', 'r') as config_file:
         config: dict = yaml.safe_load(config_file)
         
     name = "test_story"

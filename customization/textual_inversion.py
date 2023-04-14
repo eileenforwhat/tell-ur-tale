@@ -1,3 +1,4 @@
+from typing import List
 import argparse
 import logging
 import os
@@ -27,6 +28,7 @@ from diffusers import (
     UNet2DConditionModel,
 )
 from diffusers.utils.import_utils import is_xformers_available
+from utils import CustomCharacter
 
 logger = get_logger(__name__)
 
@@ -238,11 +240,14 @@ class TextualInversionTrainer(object):
         self.args = args
         print("Initialization finished.")
 
-    def train(self, placeholder_token, initializer_token, train_data_dir):
+    def train(self, characters: List[CustomCharacter]):
         """
         :return:  StableDiffusionPipeline
         """
-        print("Add the placeholder token in tokenizer")
+        assert len(characters) == 1, "single character supported for now"
+
+        placeholder_token = f"<*{characters[0].custom_name}>"
+        print(f"Add the placeholder token in tokenizer: {placeholder_token}")
         num_added_tokens = self.tokenizer.add_tokens(placeholder_token)
         if num_added_tokens == 0:
             raise ValueError(
@@ -250,6 +255,7 @@ class TextualInversionTrainer(object):
                 " `placeholder_token` that is not already in the tokenizer."
             )
         # Convert the initializer_token, placeholder_token to ids
+        initializer_token = f"{characters[0].orig_object}"
         token_ids = self.tokenizer.encode(initializer_token, add_special_tokens=False)
         # Check if initializer_token is a single token or a sequence of tokens
         if len(token_ids) > 1:
@@ -281,7 +287,7 @@ class TextualInversionTrainer(object):
 
         print("Dataset and DataLoaders creation:")
         train_dataset = TextualInversionDataset(
-            data_root=train_data_dir,
+            data_root=characters[0].custom_img_dir,
             tokenizer=self.tokenizer,
             placeholder_token=placeholder_token,
             learnable_property=self.args.learnable_property,
@@ -388,12 +394,17 @@ if __name__ == "__main__":
     """
     args = parse_args()
     trainer = TextualInversionTrainer(args)
-    pipe = trainer.train(
-        placeholder_token="<aspen>",
-        initializer_token="wolf",
-        train_data_dir="sample_images/aspen"
-    )
+    characters = [
+        CustomCharacter(
+            orig_name="wolf",
+            orig_object="wolf",
+            custom_name="Aspen",
+            custom_img_dir="sample_images/aspen"
+        )
+    ]
+    pipe = trainer.train(characters)
 
-    image = pipe("<aspen> met Little Red Riding Hood in the woods.").images[0]
+    placeholder_token = f"<*{characters[0].custom_name}>"
+    image = pipe(f"{placeholder_token} met Little Red Riding Hood in the woods.").images[0]
     image.save("output/test.png")
     pipe.save_pretrained("text-inversion-model")

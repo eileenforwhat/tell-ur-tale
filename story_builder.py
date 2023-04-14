@@ -7,20 +7,18 @@ DEFAULT_NUM_SENTENCES = 10
 
 
 class StoryBuilder(object):
-    """
-    Uses ChatGPT API to generate story plot.
-
-    Input:
-    - title
-
-    Output:
-    - sentences that describe plot of story
+    """ Uses ChatGPT API to generate story plot.
     """
     def __init__(self, **config):
         self.messages = [{
             "role": "system",
             "content": (
-                "you are a storyteller who tells children's stories. You don't use pronouns. you are good at counting  numbers. you will focus on getting the number of sentences correct. be descriptive about appearance of character and background. answer the following question.")
+                "You are a storyteller who tells children's stories. "
+                "You don't use pronouns. You are good at counting numbers. "
+                "You will focus on getting the number of sentences correct. "
+                "Be descriptive about appearance of character and background. "
+                "Answer the following question."
+            )
         }]
         self.num_sentences = config.get("num_sentences", DEFAULT_NUM_SENTENCES)
         openai.api_key = config.get("openai_api_key", DEFAULT_OPENAI_API_KEY)
@@ -29,24 +27,19 @@ class StoryBuilder(object):
         """ Returns list of story prompts.
         """
         # single character customization for now
-        assert len(custom_characters) == 1
         character = custom_characters[0]
-        name, custom_key = character.orig_name, character.custom_name
+        custom_key = character.custom_name or character.orig_name
         prompt = (
-            f"Tell me the story of {title} with {custom_key} as the main character '{name}', " +
+            f"Tell me the story of {title} with {custom_key} as the main character '{character.orig_name}', " +
             f"without using any pronouns and in exactly {self.num_sentences} sentences. " +
             f"Show me a numbered list of exactly {self.num_sentences} sentences."
         )
+        print("Prompt: \n", prompt)
         response = self.query_chatgpt(prompt)
         plot = [" ".join(x.split(" ")[1:]) for x in response.split("\n")]
-        print(plot)
+        print("Response: \n", plot)
         print(f"number of sentences generated = {len(plot)}")
         return plot
-
-    def get_characters_for_story(self, n_characters):
-        prompt = f"""
-        """
-        return
 
     def query_chatgpt(self, content):
         self.messages.append({"role": "user", "content": content})
