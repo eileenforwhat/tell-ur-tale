@@ -60,12 +60,6 @@ def parse_args():
     parser.add_argument("--num_train_steps", type=int, default=100)
     parser.add_argument("--learning_rate", type=float, default=1e-4)
     parser.add_argument(
-        "--mixed_precision",
-        type=str,
-        default="no",
-        choices=["no", "fp16"],
-    )
-    parser.add_argument(
         "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
     )
     args = parser.parse_args()
@@ -133,7 +127,6 @@ class TextualInversionDataset(Dataset):
         learnable_property="object",  # [object, style]
         size=512,
         repeats=1,
-        interpolation="bicubic",
         flip_p=0.5,
         set="train",
         placeholder_token="*",
@@ -185,13 +178,7 @@ class TextualInversionDataset(Dataset):
 
         if self.center_crop:
             crop = min(img.shape[0], img.shape[1])
-            (
-                h,
-                w,
-            ) = (
-                img.shape[0],
-                img.shape[1],
-            )
+            (h, w) = (img.shape[0], img.shape[1])
             img = img[(h - crop) // 2 : (h + crop) // 2, (w - crop) // 2 : (w + crop) // 2]
 
         image = Image.fromarray(img)
@@ -211,11 +198,7 @@ class TextualInversionTrainer(object):
         https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
     """
     def __init__(self, args):
-        self.accelerator = Accelerator(
-            mixed_precision=args.mixed_precision,
-            log_with=["tensorboard"],
-            project_dir=f"{args.output_dir}/logs"
-        )
+        self.accelerator = Accelerator()
 
         # Make one log on every process with the configuration for debugging.
         logging.basicConfig(
@@ -251,12 +234,6 @@ class TextualInversionTrainer(object):
                 self.unet.enable_xformers_memory_efficient_attention()
             else:
                 raise ValueError("xformers is not available. Make sure it is installed correctly")
-
-        # Initialize the optimizer
-        self.optimizer = torch.optim.AdamW(
-            self.text_encoder.get_input_embeddings().parameters(),  # only optimize the embeddings
-            lr=args.learning_rate,
-        )
 
         self.args = args
         print("Initialization finished.")
@@ -296,6 +273,12 @@ class TextualInversionTrainer(object):
         self.text_encoder.text_model.final_layer_norm.requires_grad_(False)
         self.text_encoder.text_model.embeddings.position_embedding.requires_grad_(False)
 
+        # Initialize the optimizer
+        optimizer = torch.optim.AdamW(
+            self.text_encoder.get_input_embeddings().parameters(),  # only optimize the embeddings
+            lr=args.learning_rate,
+        )
+
         print("Dataset and DataLoaders creation:")
         train_dataset = TextualInversionDataset(
             data_root=train_data_dir,
@@ -309,16 +292,11 @@ class TextualInversionTrainer(object):
         )
 
         print("Prepare everything with our `accelerator`.")
-        self.text_encoder, self.optimizer, train_dataloader = self.accelerator.prepare(
-            self.text_encoder, self.optimizer, train_dataloader
+        self.text_encoder, optimizer, train_dataloader = self.accelerator.prepare(
+            self.text_encoder, optimizer, train_dataloader
         )
 
-        # For mixed precision training we cast the unet and vae weights to half-precision
-        # as these models are only used for inference, keeping weights in full precision is not required.
         weight_dtype = torch.float32
-        if self.accelerator.mixed_precision == "fp16":
-            weight_dtype = torch.float16
-
         print("Move vae and unet to device and cast to weight_dtype")
         self.unet.to(self.accelerator.device, dtype=weight_dtype)
         self.vae.to(self.accelerator.device, dtype=weight_dtype)
@@ -377,8 +355,8 @@ class TextualInversionTrainer(object):
 
                 self.accelerator.backward(loss)
 
-                self.optimizer.step()
-                self.optimizer.zero_grad()
+                optimizer.step()
+                optimizer.zero_grad()
 
                 # Let's make sure we don't update any embedding weights besides the newly added token
                 index_no_updates = torch.arange(len(self.tokenizer)) != placeholder_token_id
@@ -386,9 +364,6 @@ class TextualInversionTrainer(object):
                     self.accelerator.unwrap_model(self.text_encoder).get_input_embeddings().weight[
                         index_no_updates
                     ] = orig_embeds_params[index_no_updates]
-
-            # logs = {"loss": loss.detach().item()}
-            # self.accelerator.log(logs, step=global_step)
 
         # Create the pipeline using the trained modules and save it.
         pipeline = StableDiffusionPipeline.from_pretrained(
@@ -398,27 +373,27 @@ class TextualInversionTrainer(object):
             unet=self.unet,
             tokenizer=self.tokenizer,
         )
-        pipeline.save_pretrained(self.args.output_dir)
-        # Save the newly trained embeddings
-        save_path = os.path.join(self.args.output_dir, "learned_embeds.bin")
-        save_progress(self.text_encoder, placeholder_token_id, self.accelerator, placeholder_token, save_path)
+        # pipeline.save_pretrained(self.args.output_dir)
+        # # Save the newly trained embeddings
+        # save_path = os.path.join(self.args.output_dir, "learned_embeds.bin")
+        # save_progress(self.text_encoder, placeholder_token_id, self.accelerator, placeholder_token, save_path)
 
-        self.accelerator.end_training()
         return pipeline
 
 
 if __name__ == "__main__":
     """
     python customization/textual_inversion.py --pretrained_model_name_or_path stabilityai/stable-diffusion-2 \
-      --enable_xformers_memory_efficient_attention --train_batch_size 4  --num_train_steps 20
+      --enable_xformers_memory_efficient_attention --train_batch_size 4  --num_train_steps 500
     """
     args = parse_args()
     trainer = TextualInversionTrainer(args)
     pipe = trainer.train(
-        placeholder_token="*A",
+        placeholder_token="<aspen>",
         initializer_token="wolf",
         train_data_dir="sample_images/aspen"
     )
 
-    image = pipe("*A wolf met Little Red Riding Hood in the woods.").images[0]
+    image = pipe("<aspen> met Little Red Riding Hood in the woods.").images[0]
     image.save("output/test.png")
+    pipe.save_pretrained("text-inversion-model")
