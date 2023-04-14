@@ -1,5 +1,7 @@
 .idea*
 __pycache__/
-output/
+output/*
+!output/images/
+!output/prompts/
 static/output/
 text-inversion-model/
