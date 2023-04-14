@@ -1,10 +1,9 @@
-from time import time
 from typing import Dict
 import os
 import argparse
 from typing import List
 from story_builder import StoryBuilder
-from illustrator.stable_diffusion import StableDiffusionIllustrator
+from illustrator import Illustrator
 from utils import write_illustration, write_story_prompts, CustomCharacter
 import yaml
 
@@ -14,7 +13,7 @@ DEFAULT_OUTPUT_DIR = "output"
 class TellUrTalePipeline(object):
     def __init__(self, config: Dict):
         self.story_builder = StoryBuilder(**config["story_builder"])
-        self.illustrator = StableDiffusionIllustrator(**config["illustrator"]) if config.get("illustrator") else None
+        self.illustrator = Illustrator(**config["illustrator"]) if config.get("illustrator") else None
 
     def run_tut(
         self, story_title: str, characters: List[CustomCharacter], output_dir=DEFAULT_OUTPUT_DIR
@@ -23,7 +22,7 @@ class TellUrTalePipeline(object):
         """
         # call chatgpt to generate story plot
         story_prompts = self.story_builder.generate_story_plot(story_title, characters)
-        write_story_prompts(story_prompts, output_dir=output_dir)
+        write_story_prompts(story_title, story_prompts, output_dir=output_dir)
 
         # call illustrator to generate images (with customization)
         if self.illustrator:
@@ -58,10 +57,10 @@ if __name__ == '__main__':
     if args.custom_img_dir:
         characters = [
             CustomCharacter(
-                orig_name=args.character,
+                orig_name=args.orig_name,
                 orig_object=args.orig_object,
                 custom_name=args.custom_name,
-                custom_img_dir=args.custom_data_dir
+                custom_img_dir=args.custom_img_dir
             )
         ]
     print("Characters: ", characters)

@@ -410,7 +410,7 @@ class PromptDataset(Dataset):
 
 
 class DreamBoothTrainer(object):
-    def __init__(self, args):
+    def __init__(self, pipe, args):
         self.args = args
         logging_dir = Path(args.output_dir, args.logging_dir)
 

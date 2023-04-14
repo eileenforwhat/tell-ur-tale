@@ -6,9 +6,12 @@ story_builder:
 illustrator:
   model_id: "stabilityai/stable-diffusion-2"  # ID of huggingface diffuser model
   inference_steps: 50  # number of iterations of stable diffusion per image
-  custom_type: "baseline"
+  prefix: "mdjrny-v4 Pixar movie capture of "
+  suffix: " low detail, unreal engine, symmetrical face, laurie greasley, akira toriyama, james gilleard, acrylic palette knife, 4k, vibrant colors, dusty haze, volumetric lighting, medieval"
+  negative_prompt: "bad anatomy, extra legs, extra arms, poorly drawn face, poorly drawn hands, poorly drawn feet, fat, disfigured, out of frame, long neck, bad hands, bad art, deformed, gun, double head, portrait"
+  custom_type: "textual-inversion"
   custom_args:
-    output_dir: "text-inversion-model"
+    logging_dir: "runs/text-inversion-model"
     mixed_precision: "no"
     pretrained_model_name_or_path: "duongna/stable-diffusion-v1-4-flax"
     gradient_checkpointing: True
@@ -17,6 +20,3 @@ illustrator:
     train_batch_size: 16
     num_train_epochs: 100
     learnable_property: "object"
-    prefix: "mdjrny-v4 Pixar movie capture of "
-    suffix: " low detail, unreal engine, symmetrical face, laurie greasley, akira toriyama, james gilleard, acrylic palette knife, 4k, vibrant colors, dusty haze, volumetric lighting, medieval"
-    negative_prompt: "bad anatomy, extra legs, extra arms, poorly drawn face, poorly drawn hands, poorly drawn feet, fat, disfigured, out of frame, long neck, bad hands, bad art, deformed, gun, double head, portrait"

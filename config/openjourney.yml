@@ -6,10 +6,6 @@ story_builder:
 illustrator:
   model_id: "prompthero/openjourney"  # ID of huggingface diffuser model
   inference_steps: 50  # number of iterations of stable diffusion per image
-  prompts_filename: "output/prompts/fat_fox.txt"
-  output_folder: "output/images/fat_fox/"
-  custom_type: "baseline"
-  custom_args:
-    prefix: "mdjrny-v4 Pixar movie capture of "
-    suffix: ", 4k, 8k, unreal engine, octane render photorealistic by cosmicwonder, hdr, photography by cosmicwonder, high definition, symmetrical face, volumetric lighting, dusty haze, 24mm, DSLR, high quality, 60 fps"
-    negative_prompt: "bad anatomy, extra legs, extra arms, poorly drawn face, poorly drawn hands, poorly drawn feet, fat, disfigured, out of frame, long neck, bad hands, bad art, deformed, gun, double head"
+  prefix: "mdjrny-v4 Pixar movie capture of"
+  suffix: "group photo, 4k, 8k, unreal engine, octane render photorealistic by cosmicwonder, hdr, photography by cosmicwonder, high definition, symmetrical face, volumetric lighting, dusty haze, 24mm, DSLR, high quality, 60 fps"
+  negative_prompt: "bad anatomy, extra legs, extra arms, poorly drawn face, poorly drawn hands, poorly drawn feet, fat, disfigured, out of frame, long neck, bad hands, bad art, deformed, gun, double head"

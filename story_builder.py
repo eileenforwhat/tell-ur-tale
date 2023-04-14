@@ -34,10 +34,9 @@ class StoryBuilder(object):
             f"without using any pronouns and in exactly {self.num_sentences} sentences. " +
             f"Show me a numbered list of exactly {self.num_sentences} sentences."
         )
-        print("Prompt: \n", prompt)
         response = self.query_chatgpt(prompt)
         plot = [" ".join(x.split(" ")[1:]) for x in response.split("\n")]
-        print("Response: \n", plot)
+        print(plot)
         print(f"number of sentences generated = {len(plot)}")
         return plot
 
@@ -49,16 +48,17 @@ class StoryBuilder(object):
             messages=self.messages
         )
         chat_response = completion.choices[0].message.content
-        print(f"ChatGPT: {chat_response}")
+        print(f"ChatGPT: \n{chat_response}")
         return chat_response
 
 
 if __name__ == "__main__":
     title = "Little Red Riding Hood"
     custom_characters = [
-        CustomCharacter(orig_name="wolf", custom_name="Aspen", custom_img_dir="sample_images/aspen")
+        CustomCharacter(
+            orig_name="wolf", orig_object="wolf", custom_name="Aspen", custom_img_dir="sample_images/aspen"
+        )
     ]
-    num_sentences = 10
 
     story_builder = StoryBuilder(num_sentences=10)
     plot = story_builder.generate_story_plot(title, custom_characters)

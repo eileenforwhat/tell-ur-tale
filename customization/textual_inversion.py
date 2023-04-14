@@ -65,7 +65,7 @@ def parse_args():
         "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
     )
     args = parser.parse_args()
-    return args
+    return vars(args)
 
 
 imagenet_templates_small = [
@@ -199,7 +199,7 @@ class TextualInversionTrainer(object):
     Adapted from:
         https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
     """
-    def __init__(self, args):
+    def __init__(self, pipe, **config):
         self.accelerator = Accelerator()
 
         # Make one log on every process with the configuration for debugging.
@@ -213,18 +213,16 @@ class TextualInversionTrainer(object):
         diffusers.utils.logging.set_verbosity_info()
 
         # Handle the repository creation
-        os.makedirs(args.output_dir, exist_ok=True)
-
-        # Load tokenizer
-        self.tokenizer = CLIPTokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer")
+        os.makedirs(config["logging_dir"], exist_ok=True)
 
         # Load scheduler and models
-        self.noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
-        self.text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder")
-        self.vae = AutoencoderKL.from_pretrained(args.pretrained_model_name_or_path, subfolder="vae")
-        self.unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="unet")
+        self.noise_scheduler = DDPMScheduler.from_config(pipe.scheduler.config)
+        self.tokenizer = pipe.tokenizer
+        self.text_encoder = pipe.text_encoder
+        self.vae = pipe.vae
+        self.unet = pipe.unet
 
-        if args.enable_xformers_memory_efficient_attention:
+        if config["enable_xformers_memory_efficient_attention"]:
             if is_xformers_available():
                 import xformers
 
@@ -237,7 +235,7 @@ class TextualInversionTrainer(object):
             else:
                 raise ValueError("xformers is not available. Make sure it is installed correctly")
 
-        self.args = args
+        self.args = config
         print("Initialization finished.")
 
     def train(self, characters: List[CustomCharacter]):
@@ -282,7 +280,7 @@ class TextualInversionTrainer(object):
         # Initialize the optimizer
         optimizer = torch.optim.AdamW(
             self.text_encoder.get_input_embeddings().parameters(),  # only optimize the embeddings
-            lr=args.learning_rate,
+            lr=self.args["learning_rate"],
         )
 
         print("Dataset and DataLoaders creation:")
@@ -372,19 +370,13 @@ class TextualInversionTrainer(object):
                     ] = orig_embeds_params[index_no_updates]
 
         # Create the pipeline using the trained modules and save it.
-        pipeline = StableDiffusionPipeline.from_pretrained(
-            self.args.pretrained_model_name_or_path,
-            text_encoder=self.accelerator.unwrap_model(self.text_encoder),
-            vae=self.vae,
-            unet=self.unet,
-            tokenizer=self.tokenizer,
-        )
+        self.pipe.text_encoder = self.accelerator.unwrap_model(self.text_encoder)
         # pipeline.save_pretrained(self.args.output_dir)
         # # Save the newly trained embeddings
         # save_path = os.path.join(self.args.output_dir, "learned_embeds.bin")
         # save_progress(self.text_encoder, placeholder_token_id, self.accelerator, placeholder_token, save_path)
 
-        return pipeline
+        return self.pipe
 
 
 if __name__ == "__main__":
