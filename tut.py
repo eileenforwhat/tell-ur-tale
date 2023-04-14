@@ -4,7 +4,7 @@ import argparse
 from typing import List
 from story_builder import StoryBuilder
 from illustrator import Illustrator
-from utils import write_illustration, write_story_prompts, CustomCharacter
+from utils import write_story_pages, CustomCharacter
 import yaml
 
 DEFAULT_OUTPUT_DIR = "output"
@@ -21,14 +21,14 @@ class TellUrTalePipeline(object):
         """ Call story_builder and illustrator, write text and illustrations to output.
         """
         # call chatgpt to generate story plot
-        story_prompts = self.story_builder.generate_story_plot(story_title, characters)
-        write_story_prompts(story_title, story_prompts, output_dir=output_dir)
+        story_pages = self.story_builder.generate_story_plot(story_title, characters)
 
         # call illustrator to generate images (with customization)
         if self.illustrator:
             self.illustrator.customize(characters)
-            story_images = self.illustrator.generate(story_prompts)
-            write_illustration(story_images, output_dir=output_dir)
+            story_pages = self.illustrator.generate(story_pages)
+
+        write_story_pages(story_title, story_pages, output_dir=output_dir)
 
 
 if __name__ == '__main__':
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     python tut.py --title "Jack and the Beanstalk" --orig_name Jack --config_path config/story_only.yml
     
     # run with baseline sd2 illustrator, story saved to output/jack_and_the_beanstalk/story.txt
-    python tut.py --title "Jack and the Beanstalk" --orig_name Jack --config_path config/sd2.yml
+    python tut.py --title "Little Red Riding Hood" --orig_name "Little Red Riding Hood" --config_path config/openjourney.yml
     """
     parser = argparse.ArgumentParser()
 

@@ -1,3 +1,5 @@
+import dataclasses
+
 import yaml
 import argparse
 import os
@@ -5,7 +7,7 @@ from typing import List
 from typing import Dict
 import torch
 from diffusers import StableDiffusionPipeline, EulerDiscreteScheduler
-from utils import write_illustration
+from utils import write_story_pages, parse_line_to_story_page
 from utils import StoryPage, CustomCharacter
 from customization.textual_inversion import TextualInversionTrainer
 from customization.dreambooth import DreamBoothTrainer
@@ -28,32 +30,47 @@ class Illustrator(object):
         elif config.get("custom_type") == "textual-inversion":
             self.trainer = TextualInversionTrainer(self.pipe, **config["custom_args"])
 
-        self.prompt_template = f"{config['prefix']} %s {config['suffix']}"
+        self.prompt_template = f"{config['prefix']}, %s, {config['suffix']}"
         self.negative_prompt = config["negative_prompt"]
 
     def customize(self, custom_characters: List[CustomCharacter]):
         if self.trainer is not None:
             self.trainer.train(custom_characters)
 
-    def generate(self, prompts: List[str]) -> List[StoryPage]:
-        generated_pages = []
-        for idx, prompt in enumerate(prompts):
-            full_prompt = self.prompt_template % prompt
+    def generate(self, pages: List[StoryPage]) -> List[StoryPage]:
+        illustrated_pages = []
+        for page in pages:
+            full_prompt = self.prompt_template % page.prompt
             print(full_prompt)
             image = self.pipe(full_prompt, negative_prompt=self.negative_prompt).images[0]
-            page = StoryPage(page_num=idx, text=prompt, image=image)
-            generated_pages.append(page)
-        return generated_pages
+            illustrated_pages.append(dataclasses.replace(page, image=image))
+        return illustrated_pages
 
 
 if __name__ == "__main__":
     """
     # illustration with NO customization
-    python illustrator.py --prompts_path output/jack_and_the_beanstalk/story.txt
+    python illustrator.py --orig_name Jack --prompts_path output/jack_and_the_beanstalk/story.txt \
+        --prefix "mdjrny-v4 kids illustration showcasing the story of 'Jack and the Beanstalk'" \
+        --suffix "drawn by Rebecca Sugar, bright engaging children's illustration, digital painting, big eyes, beautiful shading, beautiful colors, amazon kdp, happy, interesting, 2D" \
+        --config_path "config/sd2.yml"
+        
+    python illustrator.py --orig_name Goldilocks --prompts_path output/goldilocks_and_the_three_bears/story.txt \
+        --prefix "mdjrny-v4 kids story illustration" \
+        --suffix "drawn by Rebecca Sugar, bright engaging children's illustration, digital painting, big eyes, beautiful shading, beautiful colors, amazon kdp, happy, interesting, 2D" \
+
+    python illustrator.py --orig_name "Little Red Riding Hood" --prompts_path output/little_red_riding_hood/story.txt \
+        --prefix "mdjrny-v4 kids story illustration" \
+        --suffix "drawn by Rebecca Sugar, bright engaging children's illustration, digital painting, big eyes, beautiful shading, beautiful colors, amazon kdp, happy, interesting, 2D" \
+        
+        --suffix "rich colors, highly detailed, sharp focus, cinematic lighting, by Atey Ghailan and Beatrix Potter"
+        --prefix "Rebecca Sugar style kids book illustration showcasing the story Jack and the Beanstalk" \
+    
     """
     parser = argparse.ArgumentParser()
 
     # required args
+    parser.add_argument("--orig_name", type=str, required=True)  # choose a main character from story
     parser.add_argument("--prompts_path", type=str, required=True)  # text file with story
 
     # prompt eng
@@ -68,13 +85,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # read from text file into story pages
     with open(args.prompts_path, 'r') as prompts_file:
-        rows = [line.strip() for line in prompts_file.readlines()]
-    title = rows[0]
-    prompts = rows[1:]
-    print("Title: ", title)
-    print("Plot: \n", prompts)
+        lines = [line.strip() for line in prompts_file.readlines()]
+    title = lines[0]
+    pages = [parse_line_to_story_page(line) for line in lines[1:]]
+    print(pages)
 
+    # output dir
     title_tag = title.lower().replace(" ", "_")
     output_dir = f"output/{title_tag}"
     os.makedirs(output_dir, exist_ok=True)
@@ -82,6 +100,7 @@ if __name__ == "__main__":
     with open(args.config_path) as config_file:
         config: Dict = yaml.safe_load(config_file)
     print(f"Running config from {args.config_path}...")
+    # overwrite prefix and suffix from default if given
     if args.prefix is not None:
         config["illustrator"]["prefix"] = args.prefix
     if args.suffix is not None:
@@ -91,6 +110,7 @@ if __name__ == "__main__":
     if args.custom_img_dir:
         characters = [
             CustomCharacter(
+                orig_name=args.orig_name,
                 orig_object=args.orig_object,
                 custom_name=args.custom_name,
                 custom_img_dir=args.custom_img_dir
@@ -98,5 +118,5 @@ if __name__ == "__main__":
         ]
         print("Custom characters: ", characters)
         illustrator.customize(characters)
-    images = illustrator.generate(prompts)
-    write_illustration(images, output_dir=output_dir)
+    images = illustrator.generate(pages)
+    write_story_pages(title, images, output_dir=output_dir)
