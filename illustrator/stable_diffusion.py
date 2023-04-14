@@ -63,20 +63,10 @@ if __name__ == "__main__":
     with open('config/openjourney.yml', 'r') as config_file:
         config: dict = yaml.safe_load(config_file)
         
-    name = "test_story"
-    prompts = [
-        "a momma bear walked up to a monkey.",
-        "the momma bear and monkey skied down a hill.",
-        "the momma bear and monkey fell down.",
-    ]
-    # prompt_template = "Photo of a {}. style of laurie greasley, studio ghibli, akira toriyama, james gilleard, genshin impact, trending pixiv fanbox, acrylic palette knife, 4k, vibrant colors, devinart, trending on artstation, low details, soft fur, medieval"
-    # prompt_template = "Painting of {}. Style of sargent and rhads and leyendecker and greg hildebrandt evening sky, low thunder clouds foothpath with trees at indian summer with dreamy sky in background, colours green, red, blue black and white, acuarela"
-    # prompt_template = "Pen and ink, illustrated by herge. {}. line art, cartoon by mitsuhiro arita"
-    # prompt_template = "An anime wallpaper of {}, landscape, studio ghibli, 4 k quality, 8 k quality, high definition, digital art, matte painting, realistic painting, artstation, anime art, fanart, illustration, pixiv, danbooru, painttool sai, procreate, aesthetic"
-    # prompt_template = "Photo of a {}. with symmetric face. style of laurie greasley, studio ghibli, akira toriyama, james gilleard, genshin impact, trending pixiv fanbox, acrylic palette knife, 4k, vibrant colors, devinart, trending on artstation, low details, soft fur, medieval"
-    # prompt_template = "Painting of {}.  Style of sargent and rhads and leyendecker and greg hildebrandt evening sky, low thunder clouds foothpath with trees at indian summer with dreamy sky in background, colours green, red, blue black and white, acuarela"
-    prompt_template = "Pixar style {}, 4k, 8k, unreal engine, octane render photorealistic by cosmicwonder, hdr, photography by cosmicwonder, high definition, symmetrical face, volumetric lighting, dusty haze, photo, octane render, 24mm, 4k, 24mm, DSLR, high quality, 60 fps, ultra realistic"
-    prompt_template = config["illustrator"]['custom_args']["prefix"] + "{}" + config["illustrator"]['custom_args']["suffix"]
+    with open (config['illustrator']['prompts_filename'], 'r') as prompts_file:
+        prompts = [line.strip() for line in prompts_file.readlines()]
+        
+    output_folder = config["illustrator"]["output_folder"]
     illustrator = StableDiffusionIllustrator(**config["illustrator"])  # default config
     images = illustrator.generate(prompts)
-    write_illustration(images, output_dir="output/"+prompt_template.format("__")[:min(len(prompt_template), 40)])
+    write_illustration(images, output_dir=output_folder)
