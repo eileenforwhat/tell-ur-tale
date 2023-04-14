@@ -8,4 +8,14 @@ illustrator:
   inference_steps: 50  # number of iterations of stable diffusion per image
   custom_type: "dreambooth"
   custom_args:
-    ...
+    output_dir: "output/textual_inversion"
+    mixed_precision: "no"
+    logging_dir: "logs/textual_inversion"
+    pretrained_model_name_or_path: "duongna/stable-diffusion-v1-4-flax"
+    gradient_checkpointing: True
+    enable_xformers_memory_efficient_attention: True
+    train_data_dir: "sample_images/aspen"
+    learning_rate: 5.0e-04
+    train_batch_size: 16
+    num_train_epochs: 100
+    learnable_property: "object"

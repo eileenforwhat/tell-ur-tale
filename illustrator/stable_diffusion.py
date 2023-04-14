@@ -22,9 +22,9 @@ class StableDiffusionIllustrator(object):
 
         self.pipe = None
         if config["custom_type"] == "dreambooth":
-            self.customizer = DreamBoothTrainer(config["custom_args"])
+            self.customizer = DreamBoothTrainer(**config["custom_args"])
         elif config["custom_type"] == "textual_inversion":
-            self.customizer = TextualInversionTrainer(config["custom_args"])
+            self.customizer = TextualInversionTrainer(**config["custom_args"])
         elif config["custom_type"] == "baseline":
             self.pipe = StableDiffusionPipeline.from_pretrained(
                 model_id, scheduler=self.scheduler, torch_dtype=torch.float16
