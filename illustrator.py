@@ -34,8 +34,11 @@ class Illustrator(object):
         self.negative_prompt = config["negative_prompt"]
 
     def customize(self, custom_characters: List[CustomCharacter]):
-        if self.trainer is not None:
-            self.trainer.train(custom_characters)
+        if self.trainer is None:
+            print("No customization applied since trainer not initialized.")
+            return
+
+        self.trainer.train(custom_characters)
 
     def generate(self, pages: List[StoryPage]) -> List[StoryPage]:
         illustrated_pages = []

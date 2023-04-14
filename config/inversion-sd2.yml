@@ -11,12 +11,10 @@ illustrator:
   negative_prompt: "bad anatomy, extra legs, extra arms, poorly drawn face, poorly drawn hands, poorly drawn feet, fat, disfigured, out of frame, long neck, bad hands, bad art, deformed, gun, double head, portrait"
   custom_type: "textual-inversion"
   custom_args:
-    logging_dir: "runs/text-inversion-model"
-    mixed_precision: "no"
-    pretrained_model_name_or_path: "duongna/stable-diffusion-v1-4-flax"
-    gradient_checkpointing: True
-    enable_xformers_memory_efficient_attention: True
     learning_rate: 1e-4
     train_batch_size: 16
-    num_train_epochs: 100
-    learnable_property: "object"
+    max_train_steps: 100
+    mixed_precision: "no"
+    gradient_checkpointing: True
+    enable_xformers_memory_efficient_attention: True
+    logging_dir: "runs/text-inversion-model"

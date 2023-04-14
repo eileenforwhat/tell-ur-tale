@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Union
+
 import argparse
-import logging
 import os
 import random
 
@@ -9,63 +9,22 @@ import PIL
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
-import transformers
 from accelerate import Accelerator
-from accelerate.logging import get_logger
-
-from packaging import version
+from diffusers import DDPMScheduler, StableDiffusionPipeline
+from diffusers.utils.import_utils import is_xformers_available
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm.auto import tqdm
-from transformers import CLIPTextModel, CLIPTokenizer
 
-import diffusers
-from diffusers import (
-    AutoencoderKL,
-    DDPMScheduler,
-    StableDiffusionPipeline,
-    UNet2DConditionModel,
-)
-from diffusers.utils.import_utils import is_xformers_available
 from utils import CustomCharacter
-
-logger = get_logger(__name__)
 
 
 def save_progress(text_encoder, placeholder_token_id, accelerator, placeholder_token, save_path):
-    logger.info("Saving embeddings")
+    print("Saving embeddings")
     learned_embeds = accelerator.unwrap_model(text_encoder).get_input_embeddings().weight[placeholder_token_id]
     learned_embeds_dict = {placeholder_token: learned_embeds.detach().cpu()}
     torch.save(learned_embeds_dict, save_path)
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--pretrained_model_name_or_path",
-        type=str,
-        default=None,
-        required=True,
-        help="Path to pretrained model or model identifier from huggingface.co/models.",
-    )
-    parser.add_argument("--learnable_property", type=str, default="object", help="Choose between 'object' and 'style'")
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="text-inversion-model",
-        help="The output directory where the model predictions and checkpoints will be written.",
-    )
-    parser.add_argument(
-        "--train_batch_size", type=int, default=16, help="Batch size (per device) for the training dataloader."
-    )
-    parser.add_argument("--num_train_steps", type=int, default=100)
-    parser.add_argument("--learning_rate", type=float, default=1e-4)
-    parser.add_argument(
-        "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
-    )
-    args = parser.parse_args()
-    return vars(args)
 
 
 imagenet_templates_small = [
@@ -128,7 +87,7 @@ class TextualInversionDataset(Dataset):
         tokenizer,
         learnable_property="object",  # [object, style]
         size=512,
-        repeats=1,
+        repeats=100,
         flip_p=0.5,
         set="train",
         placeholder_token="*",
@@ -199,21 +158,18 @@ class TextualInversionTrainer(object):
     Adapted from:
         https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
     """
-    def __init__(self, pipe, **config):
-        self.accelerator = Accelerator()
-
-        # Make one log on every process with the configuration for debugging.
-        logging.basicConfig(
-            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-            datefmt="%m/%d/%Y %H:%M:%S",
-            level=logging.INFO,
-        )
-        logger.info(self.accelerator.state, main_process_only=False)
-        transformers.utils.logging.set_verbosity_warning()
-        diffusers.utils.logging.set_verbosity_info()
+    def __init__(self, init_pipe_from: Union[StableDiffusionPipeline, str], **args):
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.accelerator = Accelerator(mixed_precision=args["mixed_precision"])
 
         # Handle the repository creation
-        os.makedirs(config["logging_dir"], exist_ok=True)
+        os.makedirs(args["logging_dir"], exist_ok=True)
+
+        if type(init_pipe_from) == StableDiffusionPipeline:
+            pipe = init_pipe_from
+        else:
+            pipe = StableDiffusionPipeline.from_pretrained(init_pipe_from)
+        pipe = pipe.to(self.device)
 
         # Load scheduler and models
         self.noise_scheduler = DDPMScheduler.from_config(pipe.scheduler.config)
@@ -221,30 +177,30 @@ class TextualInversionTrainer(object):
         self.text_encoder = pipe.text_encoder
         self.vae = pipe.vae
         self.unet = pipe.unet
+        self.pipe = pipe
 
-        if config["enable_xformers_memory_efficient_attention"]:
+        if args["enable_xformers_memory_efficient_attention"]:
             if is_xformers_available():
-                import xformers
-
-                xformers_version = version.parse(xformers.__version__)
-                if xformers_version == version.parse("0.0.16"):
-                    logger.warn(
-                        "xFormers 0.0.16 cannot be used for training in some GPUs. If you observe problems during training, please update xFormers to at least 0.0.17. See https://huggingface.co/docs/diffusers/main/en/optimization/xformers for more details."
-                    )
                 self.unet.enable_xformers_memory_efficient_attention()
             else:
                 raise ValueError("xformers is not available. Make sure it is installed correctly")
 
-        self.args = config
+        self.max_train_steps = args["max_train_steps"]
+        self.train_batch_size = args["train_batch_size"]
+        self.learning_rate = args["learning_rate"]
         print("Initialization finished.")
 
-    def train(self, characters: List[CustomCharacter]):
+    def get_placeholder_token(self, text):
+        norm_text = text.lower().replace(" ", "_")
+        return f"<{norm_text}>"
+
+    def train(self, characters: List[CustomCharacter], save_model_dir=None):
         """
         :return:  StableDiffusionPipeline
         """
         assert len(characters) == 1, "single character supported for now"
 
-        placeholder_token = f"<*{characters[0].custom_name}>"
+        placeholder_token = self.get_placeholder_token(characters[0].custom_name)
         print(f"Add the placeholder token in tokenizer: {placeholder_token}")
         num_added_tokens = self.tokenizer.add_tokens(placeholder_token)
         if num_added_tokens == 0:
@@ -254,6 +210,7 @@ class TextualInversionTrainer(object):
             )
         # Convert the initializer_token, placeholder_token to ids
         initializer_token = f"{characters[0].orig_object}"
+        print(f"initializer_token: {initializer_token}")
         token_ids = self.tokenizer.encode(initializer_token, add_special_tokens=False)
         # Check if initializer_token is a single token or a sequence of tokens
         if len(token_ids) > 1:
@@ -262,61 +219,64 @@ class TextualInversionTrainer(object):
         initializer_token_id = token_ids[0]
         placeholder_token_id = self.tokenizer.convert_tokens_to_ids(placeholder_token)
 
-        print("Resize the token embeddings as we are adding new special tokens to the tokenizer")
+        # Resize the token embeddings as we are adding new special tokens to the tokenizer
         self.text_encoder.resize_token_embeddings(len(self.tokenizer))
 
-        print("Initialise the newly added placeholder token with the embeddings of the initializer token")
+        # Initialise the newly added placeholder token with the embeddings of the initializer token
         token_embeds = self.text_encoder.get_input_embeddings().weight.data
         token_embeds[placeholder_token_id] = token_embeds[initializer_token_id]
 
-        print("Freeze vae and unet")
+        # Freeze vae and unet
         self.vae.requires_grad_(False)
         self.unet.requires_grad_(False)
-        print("Freeze all parameters except for the token embeddings in text encoder")
+        # Freeze all parameters except for the token embeddings in text encoder
         self.text_encoder.text_model.encoder.requires_grad_(False)
         self.text_encoder.text_model.final_layer_norm.requires_grad_(False)
         self.text_encoder.text_model.embeddings.position_embedding.requires_grad_(False)
+        self.text_encoder.text_model.embeddings.token_embedding.requires_grad_(True)
 
         # Initialize the optimizer
         optimizer = torch.optim.AdamW(
             self.text_encoder.get_input_embeddings().parameters(),  # only optimize the embeddings
-            lr=self.args["learning_rate"],
+            lr=self.learning_rate,
         )
 
-        print("Dataset and DataLoaders creation:")
+        # Dataset and DataLoaders creation
         train_dataset = TextualInversionDataset(
             data_root=characters[0].custom_img_dir,
             tokenizer=self.tokenizer,
             placeholder_token=placeholder_token,
-            learnable_property=self.args.learnable_property,
+            learnable_property="object",
             set="train",
         )
         train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=self.args.train_batch_size, shuffle=True, num_workers=4
+            train_dataset, batch_size=self.train_batch_size, shuffle=True, num_workers=4
         )
 
-        print("Prepare everything with our `accelerator`.")
+        # Prepare everything with our `accelerator`
         self.text_encoder, optimizer, train_dataloader = self.accelerator.prepare(
             self.text_encoder, optimizer, train_dataloader
         )
 
         weight_dtype = torch.float32
+        if self.accelerator.mixed_precision == "fp16":
+            weight_dtype = torch.float16
         print("Move vae and unet to device and cast to weight_dtype")
         self.unet.to(self.accelerator.device, dtype=weight_dtype)
         self.vae.to(self.accelerator.device, dtype=weight_dtype)
 
-        logger.info("***** Running training *****")
-        logger.info(f"  Num examples = {len(train_dataset)}")
-        logger.info(f"  Num train steps = {self.args.num_train_steps}")
-        logger.info(f"  Instantaneous batch size per device = {self.args.train_batch_size}")
+        print("***** Running training *****")
+        print(f"  Num examples = {len(train_dataset)}")
+        print(f"  Num train steps = {self.max_train_steps}")
+        print(f"  Instantaneous batch size per device = {self.train_batch_size}")
 
-        print("keep original embeddings as reference")
+        # keep original embeddings as reference
         orig_embeds_params = self.accelerator.unwrap_model(
             self.text_encoder).get_input_embeddings().weight.data.clone()
 
         self.text_encoder.train()
         dataloader_iter = iter(train_dataloader)
-        for step in tqdm(range(self.args.num_train_steps)):
+        for step in tqdm(range(self.max_train_steps)):
             try:
                 batch = next(dataloader_iter)
             except StopIteration:
@@ -371,32 +331,58 @@ class TextualInversionTrainer(object):
 
         # Create the pipeline using the trained modules and save it.
         self.pipe.text_encoder = self.accelerator.unwrap_model(self.text_encoder)
-        # pipeline.save_pretrained(self.args.output_dir)
-        # # Save the newly trained embeddings
-        # save_path = os.path.join(self.args.output_dir, "learned_embeds.bin")
-        # save_progress(self.text_encoder, placeholder_token_id, self.accelerator, placeholder_token, save_path)
+        if save_model_dir:
+            self.pipe.save_pretrained(save_model_dir)
+            # Save the newly trained embeddings
+            save_path = os.path.join(save_model_dir, "learned_embeds.bin")
+            save_progress(self.text_encoder, placeholder_token_id, self.accelerator, placeholder_token, save_path)
 
         return self.pipe
 
 
 if __name__ == "__main__":
     """
-    python customization/textual_inversion.py --pretrained_model_name_or_path stabilityai/stable-diffusion-2 \
-      --enable_xformers_memory_efficient_attention --train_batch_size 4  --num_train_steps 500
+    python -m customization.textual_inversion --enable_xformers_memory_efficient_attention --train_batch_size 4  --max_train_steps 2000
     """
-    args = parse_args()
-    trainer = TextualInversionTrainer(args)
-    characters = [
+    parser = argparse.ArgumentParser()
+    # train args
+    parser.add_argument("--learning_rate", type=float, required=False, default=1e-4)
+    parser.add_argument("--train_batch_size", type=int, required=False, default=16)
+    parser.add_argument("--max_train_steps", type=int, required=False, default=100)
+    # more efficient training
+    parser.add_argument("--mixed_precision", type=str, required=False, default="fp16")
+    parser.add_argument("--enable_xformers_memory_efficient_attention", action="store_true")
+    # logging
+    parser.add_argument("--logging_dir", type=str, required=False, default="runs/text-inversion-model")
+    args = parser.parse_args()
+    args = vars(args)  # make into dictionary
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    base_model_id = "stabilityai/stable-diffusion-2"
+    title = "Little Red Riding Hood"
+    custom_characters = [
         CustomCharacter(
-            orig_name="wolf",
-            orig_object="wolf",
-            custom_name="Aspen",
-            custom_img_dir="sample_images/aspen"
+            orig_name="wolf", orig_object="wolf", custom_name="Aspen", custom_img_dir="sample_images/aspen"
         )
     ]
-    pipe = trainer.train(characters)
 
-    placeholder_token = f"<*{characters[0].custom_name}>"
-    image = pipe(f"{placeholder_token} met Little Red Riding Hood in the woods.").images[0]
-    image.save("output/test.png")
-    pipe.save_pretrained("text-inversion-model")
+    # with customization
+    weight_dtype = torch.float32
+    if args["mixed_precision"] == "fp16":
+        weight_dtype = torch.float16
+
+    trainer = TextualInversionTrainer(init_pipe_from=base_model_id, **args)
+    trainer.train(custom_characters, save_model_dir=args["logging_dir"])
+
+    placeholder_token = trainer.get_placeholder_token(custom_characters[0].custom_name)
+    prompt = f"The {placeholder_token} met the girl wearing a red hood in the woods."
+    pipe = StableDiffusionPipeline.from_pretrained(args["logging_dir"], torch_dtype=weight_dtype).to(device)
+    image = pipe(prompt).images[0]
+    image.save(f"test/{prompt.strip('.')}.png")
+
+    # without customization, for comparison
+    prompt = "The wolf met the girl wearing a red hood in the woods."
+    pipe = StableDiffusionPipeline.from_pretrained(base_model_id)
+    pipe = pipe.to(device)
+    image = pipe(prompt).images[0]
+    image.save(f"test/{prompt.strip('.')}.png")

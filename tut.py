@@ -34,7 +34,7 @@ class TellUrTalePipeline(object):
 if __name__ == '__main__':
     """
     # run without illustrator, story saved to output/jack_and_the_beanstalk/story.txt
-    python tut.py --title "Jack and the Beanstalk" --orig_name Jack --config_path config/story_only.yml
+    python tut.py --title "Jack and the Beanstalk" --orig_name Jack --config_path config/story-only.yml
     
     # run with baseline sd2 illustrator, story saved to output/jack_and_the_beanstalk/story.txt
     python tut.py --title "Little Red Riding Hood" --orig_name "Little Red Riding Hood" --config_path config/openjourney.yml
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     parser.add_argument("--orig_object", type=str, required=False, default="person")
     parser.add_argument("--custom_name", type=str, required=False, default=None)
     parser.add_argument("--custom_img_dir", type=str, required=False, default=None)
-    parser.add_argument("--config_path", type=str, required=False, default="config/story_only.yml")
+    parser.add_argument("--config_path", type=str, required=False, default="config/story-only.yml")
 
     args = parser.parse_args()
 

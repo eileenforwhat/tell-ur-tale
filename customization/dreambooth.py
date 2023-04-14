@@ -437,26 +437,8 @@ class DreamBoothTrainer(object):
                 "Please set gradient_accumulation_steps to 1. This feature will be supported in the future."
             )
 
-        # Make one log on every process with the configuration for debugging.
-        logging.basicConfig(
-            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-            datefmt="%m/%d/%Y %H:%M:%S",
-            level=logging.INFO,
-        )
-        logger.info(self.accelerator.state, main_process_only=False)
-        if self.accelerator.is_local_main_process:
-            transformers.utils.logging.set_verbosity_warning()
-            diffusers.utils.logging.set_verbosity_info()
-        else:
-            transformers.utils.logging.set_verbosity_error()
-            diffusers.utils.logging.set_verbosity_error()
+        os.makedirs(args.logging_dir, exist_ok=True)
 
-        # If passed along, set the training seed now.
-        if args.seed is not None:
-            set_seed(args.seed)
-
-        if args.output_dir is not None:
-            os.makedirs(args.output_dir, exist_ok=True)
 
         # Load the tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
