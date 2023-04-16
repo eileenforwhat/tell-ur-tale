@@ -177,14 +177,14 @@ class DreamBoothTrainer(object):
         self.vae = pipe.vae
         self.unet = pipe.unet
 
-        if args["use_lora"]:
-            #TODO
-            pass
-        else:
-            self.vae.requires_grad_(False)
-            if not args["train_text_encoder"]:
-                self.text_encoder.requires_grad_(False)
-            self.unet.requires_grad_(True)
+        # if args["use_lora"]:
+        #     #TODO
+        #     pass
+        # else:
+        self.vae.requires_grad_(False)
+        if not args["train_text_encoder"]:
+            self.text_encoder.requires_grad_(False)
+        self.unet.requires_grad_(True)
 
         if args["enable_xformers_memory_efficient_attention"]:
             if is_xformers_available():
@@ -222,7 +222,7 @@ class DreamBoothTrainer(object):
         else:
             optimizer_class = torch.optim.AdamW
 
-        if args["use_lora"]:
+        # if args["use_lora"]:
             # TODO (if use lora, train lora weights)
             # lora_attn_procs = {}
             # for name in unet.attn_processors.keys():
@@ -242,12 +242,12 @@ class DreamBoothTrainer(object):
             # unet.set_attn_processor(lora_attn_procs)
             # lora_layers = AttnProcsLayers(unet.attn_processors)
             # params_to_optimize = # todo lora parameters
-            pass
-        else:
-            params_to_optimize = (
-                itertools.chain(self.unet.parameters(), self.text_encoder.parameters())
-                if args["train_text_encoder"] else self.unet.parameters()
-            )
+        #     pass
+        # else:
+        params_to_optimize = (
+            itertools.chain(self.unet.parameters(), self.text_encoder.parameters())
+            if args["train_text_encoder"] else self.unet.parameters()
+        )
         # Optimizer creation
         self.optimizer = optimizer_class(params_to_optimize, lr=args["learning_rate"])
 
@@ -297,14 +297,14 @@ class DreamBoothTrainer(object):
         norm_text = text.lower().replace(" ", "_")
         return f"<{norm_text}>"
 
-    def get_instance_prompt(self, text):
-        token = self.get_placeholder_token(text)
-        return f"a photo of {token}"
+    def get_instance_prompt(self, character: CustomCharacter):
+        token = self.get_placeholder_token(character.custom_name)
+        return f"a photo of {token} {character.orig_object}"
 
     def train(self, characters: List[CustomCharacter], save_model_dir=None):
         assert len(characters) == 1, "single character supported for now"
 
-        instance_prompt = self.get_instance_prompt(characters[0].custom_name)
+        instance_prompt = self.get_instance_prompt(characters[0])
 
         # Dataset and DataLoaders creation:
         if self.with_prior_preservation:
