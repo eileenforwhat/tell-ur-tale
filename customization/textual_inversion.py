@@ -159,7 +159,7 @@ class TextualInversionTrainer(object):
         https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
     """
     def __init__(self, init_pipe_from: Union[StableDiffusionPipeline, str], **args):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = args["device"] if torch.cuda.is_available() else "cpu"
         self.accelerator = Accelerator(mixed_precision=args["mixed_precision"])
 
         # Handle the repository creation
@@ -350,6 +350,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, required=False, default=1e-4)
     parser.add_argument("--train_batch_size", type=int, required=False, default=16)
     parser.add_argument("--max_train_steps", type=int, required=False, default=100)
+    parser.add_argument("--device", type=str, required=False, default="cuda:0")  # suffix for text2image model
 
     # more efficient training
     parser.add_argument("--mixed_precision", type=str, required=False, default="fp16")

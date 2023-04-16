@@ -14,21 +14,20 @@ from customization.dreambooth import DreamBoothTrainer
 
 
 class Illustrator(object):
-    def __init__(self, **config):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+    def __init__(self, device="cuda:0", **config):
+        self.device = device if torch.cuda.is_available() else "cpu"
 
         self.scheduler = EulerDiscreteScheduler.from_pretrained(config["model_id"], subfolder="scheduler")
         self.scheduler.set_timesteps(config["inference_steps"], self.device)
         self.pipe = StableDiffusionPipeline.from_pretrained(
             config["model_id"], scheduler=self.scheduler, torch_dtype=torch.float32
         )
-        self.pipe = self.pipe.to(self.device)
 
         self.trainer = None
         if config.get("custom_type") == "dreambooth":
-            self.trainer = DreamBoothTrainer(self.pipe, **config["custom_args"])
+            self.trainer = DreamBoothTrainer(self.pipe, **config["custom_args"], device=self.device)
         elif config.get("custom_type") == "textual-inversion":
-            self.trainer = TextualInversionTrainer(self.pipe, **config["custom_args"])
+            self.trainer = TextualInversionTrainer(self.pipe, **config["custom_args"], device=self.device)
 
         self.prompt_template = f"{config['prefix']}, %s, {config['suffix']}"
         self.negative_prompt = config["negative_prompt"]
@@ -42,6 +41,7 @@ class Illustrator(object):
 
     def generate(self, pages: List[StoryPage]) -> List[StoryPage]:
         illustrated_pages = []
+        self.pipe.to(self.device)
         for page in pages:
             full_prompt = self.prompt_template % page.prompt
             print(full_prompt)
@@ -85,6 +85,8 @@ if __name__ == "__main__":
     parser.add_argument("--prefix", type=str, required=False, default=None)  # prefix for text2image model
     parser.add_argument("--suffix", type=str, required=False, default=None)  # suffix for text2image model
 
+    parser.add_argument("--device", type=int, required=False, default=0)  # suffix for text2image model
+
     # custom args
     parser.add_argument("--orig_object", type=str, required=False, default="boy")
     parser.add_argument("--custom_name", type=str, required=False, default=None)
@@ -114,7 +116,7 @@ if __name__ == "__main__":
     if args.suffix is not None:
         config["illustrator"]["suffix"] = args.suffix
 
-    illustrator = Illustrator(**config["illustrator"])
+    illustrator = Illustrator(**config["illustrator"], device=args.device)
     if args.custom_img_dir:
         characters = [
             CustomCharacter(

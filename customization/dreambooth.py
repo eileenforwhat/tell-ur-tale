@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 import argparse
 import itertools
@@ -147,8 +147,8 @@ class PromptDataset(Dataset):
 
 
 class DreamBoothTrainer(object):
-    def __init__(self, init_pipe_from, **args):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+    def __init__(self, init_pipe_from: Union[StableDiffusionPipeline, str], **args):
+        self.device = args["device"] if torch.cuda.is_available() else "cpu"
         self.accelerator = Accelerator(
             mixed_precision=args["mixed_precision"],
             log_with=["tensorboard"],
@@ -160,7 +160,6 @@ class DreamBoothTrainer(object):
             pipe = init_pipe_from
         else:
             pipe = StableDiffusionPipeline.from_pretrained(init_pipe_from, torch_dtype=torch.float32)
-        pipe = pipe.to(self.device)
 
         # Load the tokenizer
         self.tokenizer = pipe.tokenizer
@@ -473,7 +472,7 @@ if __name__ == "__main__":
     if args["mixed_precision"] == "fp16":
         weight_dtype = torch.float16
 
-    trainer = DreamBoothTrainer(init_pipe_from=base_model_id, **args)
+    trainer = DreamBoothTrainer(init_pipe_from=base_model_id, device=device, **args)
     trainer.train(custom_characters, save_model_dir=args["logging_dir"])
 
     placeholder_token = trainer.get_placeholder_token(custom_characters[0].custom_name)
