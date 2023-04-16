@@ -18,6 +18,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm.auto import tqdm
+# from diffusers.loaders import AttnProcsLayers
+# from diffusers.models.attention_processor import LoRAAttnProcessor
 
 from utils import CustomCharacter
 
@@ -148,6 +150,8 @@ class PromptDataset(Dataset):
 
 class DreamBoothTrainer(object):
     def __init__(self, init_pipe_from: Union[StableDiffusionPipeline, str], **args):
+        # args["use_lora"]
+
         self.device = args["device"] if torch.cuda.is_available() else "cpu"
         self.accelerator = Accelerator(
             device_placement=False,
@@ -173,9 +177,14 @@ class DreamBoothTrainer(object):
         self.vae = pipe.vae
         self.unet = pipe.unet
 
-        self.vae.requires_grad_(False)
-        if not args["train_text_encoder"]:
-            self.text_encoder.requires_grad_(False)
+        if args["use_lora"]:
+            #TODO
+            pass
+        else:
+            self.vae.requires_grad_(False)
+            if not args["train_text_encoder"]:
+                self.text_encoder.requires_grad_(False)
+            self.unet.requires_grad_(True)
 
         if args["enable_xformers_memory_efficient_attention"]:
             if is_xformers_available():
@@ -213,11 +222,33 @@ class DreamBoothTrainer(object):
         else:
             optimizer_class = torch.optim.AdamW
 
+        if args["use_lora"]:
+            # TODO (if use lora, train lora weights)
+            # lora_attn_procs = {}
+            # for name in unet.attn_processors.keys():
+            #     cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
+            #     if name.startswith("mid_block"):
+            #         hidden_size = unet.config.block_out_channels[-1]
+            #     elif name.startswith("up_blocks"):
+            #         block_id = int(name[len("up_blocks.")])
+            #         hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
+            #     elif name.startswith("down_blocks"):
+            #         block_id = int(name[len("down_blocks.")])
+            #         hidden_size = unet.config.block_out_channels[block_id]
+            #
+            #     lora_attn_procs[name] = LoRAAttnProcessor(hidden_size=hidden_size,
+            #                                               cross_attention_dim=cross_attention_dim)
+            #
+            # unet.set_attn_processor(lora_attn_procs)
+            # lora_layers = AttnProcsLayers(unet.attn_processors)
+            # params_to_optimize = # todo lora parameters
+            pass
+        else:
+            params_to_optimize = (
+                itertools.chain(self.unet.parameters(), self.text_encoder.parameters())
+                if args["train_text_encoder"] else self.unet.parameters()
+            )
         # Optimizer creation
-        params_to_optimize = (
-            itertools.chain(self.unet.parameters(), self.text_encoder.parameters())
-            if args["train_text_encoder"] else self.unet.parameters()
-        )
         self.optimizer = optimizer_class(params_to_optimize, lr=args["learning_rate"])
 
         # Generate class images if prior preservation is enabled.
@@ -292,6 +323,7 @@ class DreamBoothTrainer(object):
         )
 
         # Prepare everything with our `accelerator`.
+        # TODO: add lora if true
         if self.train_text_encoder:
             self.unet, self.text_encoder, self.optimizer, train_dataloader = self.accelerator.prepare(
                 self.unet, self.text_encoder, self.optimizer, train_dataloader
