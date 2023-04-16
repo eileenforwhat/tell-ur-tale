@@ -286,10 +286,11 @@ class DreamBoothTrainer(object):
         os.makedirs(self.save_model_dir, exist_ok=True)
         # prior preservation loss
         self.with_prior_preservation = args["with_prior_preservation"]
-        self.class_data_dir = args["class_data_dir"]
-        self.class_prompt = args["class_prompt"]
-        self.num_class_images = args["num_class_images"]
-        self.prior_loss_weight = args["prior_loss_weight"]
+        if self.with_prior_preservation:
+            self.prior_loss_weight = args["prior_loss_weight"]
+            self.class_data_dir = args["class_data_dir"]
+            self.num_class_images = args["num_class_images"]
+            self.class_prompt = args["class_prompt"]
         print("Initialization finished.")
 
     def get_placeholder_token(self, text):
@@ -306,14 +307,22 @@ class DreamBoothTrainer(object):
         instance_prompt = self.get_instance_prompt(characters[0].custom_name)
 
         # Dataset and DataLoaders creation:
-        train_dataset = DreamBoothDataset(
-            instance_data_root=characters[0].custom_img_dir,
-            instance_prompt=instance_prompt,
-            class_data_root=self.class_data_dir if self.with_prior_preservation else None,
-            class_prompt=self.class_prompt,
-            class_num=self.num_class_images,
-            tokenizer=self.tokenizer,
-        )
+        if self.with_prior_preservation:
+            train_dataset = DreamBoothDataset(
+                instance_data_root=characters[0].custom_img_dir,
+                instance_prompt=instance_prompt,
+                class_data_root=self.class_data_dir,
+                class_prompt=self.class_prompt,
+                class_num=self.num_class_images,
+                tokenizer=self.tokenizer,
+            )
+        else:
+            train_dataset = DreamBoothDataset(
+                instance_data_root=characters[0].custom_img_dir,
+                instance_prompt=instance_prompt,
+                tokenizer=self.tokenizer,
+            )
+            
 
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset,

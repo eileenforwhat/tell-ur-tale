@@ -13,14 +13,14 @@ illustrator:
   custom_args:
     learning_rate: 0.000002
     train_batch_size: 1
-    max_train_steps: 2000
+    max_train_steps: 10 #2000
     train_text_encoder: False
     class_prompt: "photo of a boy"
     class_data_dir: "sample_images/class_boy"
-    with_prior_preservation: True
+    with_prior_preservation: False
     prior_loss_weight: 1.0
     num_class_images: 100
     mixed_precision: "no"
-    use_8bit_adam: False
+    use_8bit_adam: True
     enable_xformers_memory_efficient_attention: True
     logging_dir: "runs/dreambooth-model"
