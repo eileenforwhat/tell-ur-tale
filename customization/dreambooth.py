@@ -165,12 +165,12 @@ class DreamBoothTrainer(object):
         self.tokenizer = pipe.tokenizer
 
         # Load scheduler and models
+        self.pipe = pipe.to(self.device)
         self.noise_scheduler = DDPMScheduler.from_config(pipe.scheduler.config)
         self.tokenizer = pipe.tokenizer
         self.text_encoder = pipe.text_encoder
         self.vae = pipe.vae
         self.unet = pipe.unet
-        self.pipe = pipe
 
         self.vae.requires_grad_(False)
         if not args["train_text_encoder"]:
@@ -250,6 +250,8 @@ class DreamBoothTrainer(object):
         self.max_train_steps = args["max_train_steps"]
         self.train_batch_size = args["train_batch_size"]
         self.train_text_encoder = args["train_text_encoder"]
+        self.save_model_dir = args["save_model_dir"]
+        os.makedirs(self.save_model_dir, exist_ok=True)
         # prior preservation loss
         self.with_prior_preservation = args["with_prior_preservation"]
         self.class_data_dir = args["class_data_dir"]
@@ -388,6 +390,7 @@ class DreamBoothTrainer(object):
         # Create the pipeline using using the trained modules and save it.
         self.pipe.text_encoder = self.accelerator.unwrap_model(self.text_encoder)
         self.pipe.unet = self.accelerator.unwrap_model(self.unet)
+        save_model_dir = save_model_dir or self.save_model_dir
         if save_model_dir:
             self.pipe.save_pretrained(save_model_dir)
 

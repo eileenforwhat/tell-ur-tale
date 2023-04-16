@@ -188,6 +188,8 @@ class TextualInversionTrainer(object):
         self.max_train_steps = args["max_train_steps"]
         self.train_batch_size = args["train_batch_size"]
         self.learning_rate = args["learning_rate"]
+        self.save_model_dir = args["save_model_dir"]
+        os.makedirs(self.save_model_dir, exist_ok=True)
         print("Initialization finished.")
 
     def get_placeholder_token(self, text):
@@ -331,6 +333,7 @@ class TextualInversionTrainer(object):
 
         # Create the pipeline using the trained modules and save it.
         self.pipe.text_encoder = self.accelerator.unwrap_model(self.text_encoder)
+        save_model_dir = save_model_dir or self.save_model_dir
         if save_model_dir:
             self.pipe.save_pretrained(save_model_dir)
             # Save the newly trained embeddings

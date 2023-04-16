@@ -73,7 +73,7 @@ if __name__ == "__main__":
         --custom_name Simon --custom_img_dir sample_images/simon_512 \
         --prefix "mdjrny-v4 kids story illustration" \
         --suffix "drawn by Rebecca Sugar, bright engaging children's illustration, digital painting, big eyes, beautiful shading, beautiful colors, amazon kdp, happy, interesting, 2D" \
-        --config_path config/dreambooth-sd1-5.yml --device cuda:0
+        --config_path config/dreambooth-sd1-5.yml --device cuda:1
     """
     parser = argparse.ArgumentParser()
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     parser.add_argument("--prefix", type=str, required=False, default=None)  # prefix for text2image model
     parser.add_argument("--suffix", type=str, required=False, default=None)  # suffix for text2image model
 
-    parser.add_argument("--device", type=int, required=False, default=0)  # suffix for text2image model
+    parser.add_argument("--device", type=str, required=False, default="cuda:0")  # suffix for text2image model
 
     # custom args
     parser.add_argument("--orig_object", type=str, required=False, default="boy")

@@ -11,7 +11,7 @@ illustrator:
   negative_prompt: "bad anatomy, extra legs, extra arms, poorly drawn face, poorly drawn hands, poorly drawn feet, fat, disfigured, out of frame, long neck, bad hands, bad art, deformed, gun, double head, portrait"
   custom_type: "dreambooth"
   custom_args:
-    learning_rate: 0.001
+    learning_rate: 0.000002
     train_batch_size: 1
     max_train_steps: 2000
     train_text_encoder: False
@@ -23,4 +23,5 @@ illustrator:
     mixed_precision: "no"
     use_8bit_adam: False
     enable_xformers_memory_efficient_attention: True
-    logging_dir: "runs/dreambooth"
+    logging_dir: "runs/dreambooth-model"
+    save_model_dir: "runs/dreambooth-model"
