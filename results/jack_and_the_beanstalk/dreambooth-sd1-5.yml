@@ -21,7 +21,7 @@ illustrator:
     prior_loss_weight: 1.0
     num_class_images: 100
     mixed_precision: "no"
-    use_8bit_adam: False
+    use_8bit_adam: True
     enable_xformers_memory_efficient_attention: True
     logging_dir: "runs/dreambooth-model"
     use_lora: False

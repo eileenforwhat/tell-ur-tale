@@ -225,7 +225,7 @@ class DreamBoothTrainer(object):
         else:
             optimizer_class = torch.optim.AdamW
 
-        if args["use_lora"]:
+        # if args["use_lora"]:
             # TODO (if use lora, train lora weights)
             lora_attn_procs = {}
             for name in self.unet.attn_processors.keys():
@@ -289,35 +289,45 @@ class DreamBoothTrainer(object):
         os.makedirs(self.save_model_dir, exist_ok=True)
         # prior preservation loss
         self.with_prior_preservation = args["with_prior_preservation"]
+
         self.class_data_dir = args["class_data_dir"]
         self.class_prompt = args["class_prompt"]
         self.num_class_images = args["num_class_images"]
         self.prior_loss_weight = args["prior_loss_weight"]
         self.use_lora = args["use_lora"]
+
         print("Initialization finished.")
 
     def get_placeholder_token(self, text):
         norm_text = text.lower().replace(" ", "_")
         return f"<{norm_text}>"
 
-    def get_instance_prompt(self, text):
-        token = self.get_placeholder_token(text)
-        return f"a photo of {token}"
+    def get_instance_prompt(self, character: CustomCharacter):
+        token = self.get_placeholder_token(character.custom_name)
+        return f"a photo of {token} {character.orig_object}"
 
     def train(self, characters: List[CustomCharacter], save_model_dir=None):
         assert len(characters) == 1, "single character supported for now"
 
-        instance_prompt = self.get_instance_prompt(characters[0].custom_name)
+        instance_prompt = self.get_instance_prompt(characters[0])
 
         # Dataset and DataLoaders creation:
-        train_dataset = DreamBoothDataset(
-            instance_data_root=characters[0].custom_img_dir,
-            instance_prompt=instance_prompt,
-            class_data_root=self.class_data_dir if self.with_prior_preservation else None,
-            class_prompt=self.class_prompt,
-            class_num=self.num_class_images,
-            tokenizer=self.tokenizer,
-        )
+        if self.with_prior_preservation:
+            train_dataset = DreamBoothDataset(
+                instance_data_root=characters[0].custom_img_dir,
+                instance_prompt=instance_prompt,
+                class_data_root=self.class_data_dir,
+                class_prompt=self.class_prompt,
+                class_num=self.num_class_images,
+                tokenizer=self.tokenizer,
+            )
+        else:
+            train_dataset = DreamBoothDataset(
+                instance_data_root=characters[0].custom_img_dir,
+                instance_prompt=instance_prompt,
+                tokenizer=self.tokenizer,
+            )
+            
 
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset,
@@ -447,12 +457,18 @@ class DreamBoothTrainer(object):
         save_model_dir = save_model_dir or self.save_model_dir
         
         if save_model_dir:
+<<<<<<< HEAD
             if self.use_lora:
                 self.unet = self.unet.to(torch.float32)
                 self.unet.save_attn_procs(save_model_dir)
             else:
                 self.pipe.save_pretrained(save_model_dir)
             
+=======
+            self.pipe.save_pretrained(save_model_dir)
+            print(f"saved model to {save_model_dir}")
+
+>>>>>>> origin/main
         return self.pipe
 
 
