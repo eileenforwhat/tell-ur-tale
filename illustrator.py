@@ -41,7 +41,7 @@ class Illustrator(object):
 
     def generate(self, pages: List[StoryPage], custom_characters: List[CustomCharacter]=None) -> List[StoryPage]:
         illustrated_pages = []
-        self.pipe.to(self.device)
+        self.pipe = self.pipe.to(self.device, torch_dtype=torch.float32)
         for page in pages:
             prompt = page.prompt
             if self.trainer is not None and custom_characters is not None:

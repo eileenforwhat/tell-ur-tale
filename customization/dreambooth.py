@@ -489,7 +489,9 @@ if __name__ == "__main__":
     parser.add_argument("--max_train_steps", type=int, required=False, default=100)
 
     # more efficient training
-    parser.add_argument("--mixed_precision", type=str, required=False, default="no")
+    parser.add_argument("--mixed_precision", type=str, 
+                        choices=["no", "fp16"],
+                        required=False, default="no")
     parser.add_argument(
         "--use_8bit_adam", action="store_true", help="Whether or not to use 8-bit Adam from bitsandbytes."
     )
