@@ -57,6 +57,12 @@ class Illustrator(object):
 
 if __name__ == "__main__":
     """
+    # use trained customization model to generate images
+    python illustrator.py --orig_name Goldilocks --prompts_path output/goldilocks_and_the_three_bears/story.txt \
+        --prefix "mdjrny-v4 kids story illustration" \
+        --suffix "drawn by Rebecca Sugar, bright engaging children's illustration, digital painting, big eyes, beautiful shading, beautiful colors, amazon kdp, happy, interesting, 2D" \
+        --model_id "runs/dreambooth-model" --device "cuda:1"
+        
     # illustration with NO customization
     python illustrator.py --orig_name Jack --prompts_path output/jack_and_the_beanstalk/story.txt \
         --prefix "mdjrny-v4 kids illustration showcasing the story of 'Jack and the Beanstalk'" \
@@ -79,6 +85,7 @@ if __name__ == "__main__":
         --prefix "mdjrny-v4 kids story illustration" \
         --suffix "drawn by Rebecca Sugar, bright engaging children's illustration, digital painting, big eyes, beautiful shading, beautiful colors, amazon kdp, happy, interesting, 2D" \
         --config_path config/dreambooth-sd1-5.yml --device cuda:1
+        
     """
     parser = argparse.ArgumentParser()
 
@@ -96,6 +103,7 @@ if __name__ == "__main__":
     parser.add_argument("--orig_object", type=str, required=False, default="boy")
     parser.add_argument("--custom_name", type=str, required=False, default=None)
     parser.add_argument("--custom_img_dir", type=str, required=False, default=None)
+    parser.add_argument("--model_id", type=str, required=False, default=None)
     parser.add_argument("--config_path", type=str, required=False, default="config/openjourney.yml")
 
     args = parser.parse_args()
@@ -120,8 +128,12 @@ if __name__ == "__main__":
         config["illustrator"]["prefix"] = args.prefix
     if args.suffix is not None:
         config["illustrator"]["suffix"] = args.suffix
+    # overwrite model_id if given
+    if args.model_id is not None:
+        config["illustrator"]["model_id"] = args.model_id
 
     illustrator = Illustrator(**config["illustrator"], device=args.device)
+    characters = None
     if args.custom_img_dir:
         characters = [
             CustomCharacter(
