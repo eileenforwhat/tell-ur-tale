@@ -150,6 +150,7 @@ class DreamBoothTrainer(object):
     def __init__(self, init_pipe_from: Union[StableDiffusionPipeline, str], **args):
         self.device = args["device"] if torch.cuda.is_available() else "cpu"
         self.accelerator = Accelerator(
+            device_placement=False,
             mixed_precision=args["mixed_precision"],
             log_with=["tensorboard"],
             logging_dir=args["logging_dir"]
@@ -167,7 +168,7 @@ class DreamBoothTrainer(object):
         # Load scheduler and models
         self.pipe = pipe.to(self.device)
         self.noise_scheduler = DDPMScheduler.from_config(pipe.scheduler.config)
-        self.tokenizer = pipe.tokenizer
+
         self.text_encoder = pipe.text_encoder
         self.vae = pipe.vae
         self.unet = pipe.unet
@@ -234,7 +235,7 @@ class DreamBoothTrainer(object):
                 sample_dataloader = torch.utils.data.DataLoader(sample_dataset, batch_size=1)
 
                 sample_dataloader = self.accelerator.prepare(sample_dataloader)
-                self.pipe.to(self.accelerator.device)
+                self.pipe.to(self.device)
 
                 for example in tqdm(sample_dataloader, desc="Generating class images"):
                     images = self.pipe(example["prompt"]).images
@@ -306,9 +307,9 @@ class DreamBoothTrainer(object):
         if self.accelerator.mixed_precision == "fp16":
             weight_dtype = torch.float16
         # Move vae and text_encoder to device and cast to weight_dtype
-        self.vae.to(self.accelerator.device, dtype=weight_dtype)
+        self.vae.to(self.device, dtype=weight_dtype)
         if not self.train_text_encoder:
-            self.text_encoder.to(self.accelerator.device, dtype=weight_dtype)
+            self.text_encoder.to(self.device, dtype=weight_dtype)
         
         self.accelerator.init_trackers("dreambooth")
 
@@ -331,7 +332,9 @@ class DreamBoothTrainer(object):
             except StopIteration:
                 dataloader_iter = iter(train_dataloader)
                 batch = next(dataloader_iter)
-                
+            batch["pixel_values"] = batch["pixel_values"].to(self.device)
+            batch["input_ids"] = batch["input_ids"].to(self.device)
+
             # Skip steps until we reach the resumed step
             with self.accelerator.accumulate(self.unet):
                 # Convert images to latent space

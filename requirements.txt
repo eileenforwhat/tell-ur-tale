@@ -6,3 +6,4 @@ accelerate
 openai
 pyyaml
 flask
+torchvision
