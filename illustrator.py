@@ -20,7 +20,7 @@ class Illustrator(object):
         self.scheduler = EulerDiscreteScheduler.from_pretrained(config["model_id"], subfolder="scheduler")
         self.scheduler.set_timesteps(config["inference_steps"], self.device)
         self.pipe = StableDiffusionPipeline.from_pretrained(
-            config["model_id"], scheduler=self.scheduler, torch_dtype=torch.float16
+            config["model_id"], scheduler=self.scheduler, torch_dtype=torch.float32
         )
         self.pipe = self.pipe.to(self.device)
 

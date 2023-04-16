@@ -11,12 +11,16 @@ illustrator:
   negative_prompt: "bad anatomy, extra legs, extra arms, poorly drawn face, poorly drawn hands, poorly drawn feet, fat, disfigured, out of frame, long neck, bad hands, bad art, deformed, gun, double head, portrait"
   custom_type: "dreambooth"
   custom_args:
-    learning_rate: 1e-4
+    learning_rate: 0.001
     train_batch_size: 4
     max_train_steps: 2000
     train_text_encoder: True
     class_prompt: "photo of a boy"
+    class_data_dir: "sample_images/class_boy"
     with_prior_preservation: True
+    prior_loss_weight: 1.0
+    num_class_images: 100
     mixed_precision: "no"
+    use_8bit_adam: False
     enable_xformers_memory_efficient_attention: True
     logging_dir: "runs/dreambooth"

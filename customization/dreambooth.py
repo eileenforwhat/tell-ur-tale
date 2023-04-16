@@ -159,7 +159,7 @@ class DreamBoothTrainer(object):
         if type(init_pipe_from) == StableDiffusionPipeline:
             pipe = init_pipe_from
         else:
-            pipe = StableDiffusionPipeline.from_pretrained(init_pipe_from)
+            pipe = StableDiffusionPipeline.from_pretrained(init_pipe_from, torch_dtype=torch.float32)
         pipe = pipe.to(self.device)
 
         # Load the tokenizer
@@ -256,6 +256,7 @@ class DreamBoothTrainer(object):
         self.class_data_dir = args["class_data_dir"]
         self.class_prompt = args["class_prompt"]
         self.num_class_images = args["num_class_images"]
+        self.prior_loss_weight = args["prior_loss_weight"]
         print("Initialization finished.")
 
     def get_placeholder_token(self, text):
@@ -361,7 +362,7 @@ class DreamBoothTrainer(object):
                 else:
                     raise ValueError(f"Unknown prediction type {self.noise_scheduler.config.prediction_type}")
 
-                if args.with_prior_preservation:
+                if self.with_prior_preservation:
                     # Chunk the noise and model_pred into two parts and compute the loss on each part separately.
                     model_pred, model_pred_prior = torch.chunk(model_pred, 2, dim=0)
                     target, target_prior = torch.chunk(target, 2, dim=0)
@@ -373,7 +374,7 @@ class DreamBoothTrainer(object):
                     prior_loss = F.mse_loss(model_pred_prior.float(), target_prior.float(), reduction="mean")
 
                     # Add the prior loss to the instance loss.
-                    loss = loss + args.prior_loss_weight * prior_loss
+                    loss = loss + self.prior_loss_weight * prior_loss
                 else:
                     loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
 
@@ -413,6 +414,13 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="The prompt to specify images in the same class as provided instance images.",
+    )
+    parser.add_argument(
+        "--class_data_dir",
+        type=str,
+        default=None,
+        required=False,
+        help="A folder containing the training data of class images.",
     )
     parser.add_argument(
         "--with_prior_preservation",
