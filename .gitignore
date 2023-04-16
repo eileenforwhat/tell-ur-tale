@@ -4,11 +4,9 @@ runs/*
 test/*
 sample_images/class_*
 static/output/
-output/*
-!output/goldilocks_and_the_three_bears
-!output/jack_and_the_beanstalk
-!output/little_red_riding_hood
-!output/short_fox
-!output/prompts
-!output/images
+output/**/*.png
+# !output/goldilocks_and_the_three_bears/story.txt
+# !output/jack_and_the_beanstalk/story.txt
+# !output/little_red_riding_hood/story.txt
+# !output/short_fox/story.txt
 text-inversion-model/
