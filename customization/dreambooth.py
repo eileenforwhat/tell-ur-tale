@@ -251,7 +251,7 @@ class DreamBoothTrainer(object):
         self.max_train_steps = args["max_train_steps"]
         self.train_batch_size = args["train_batch_size"]
         self.train_text_encoder = args["train_text_encoder"]
-        self.save_model_dir = args["save_model_dir"]
+        self.save_model_dir = args["logging_dir"]
         os.makedirs(self.save_model_dir, exist_ok=True)
         # prior preservation loss
         self.with_prior_preservation = args["with_prior_preservation"]

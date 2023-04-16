@@ -24,4 +24,3 @@ illustrator:
     use_8bit_adam: False
     enable_xformers_memory_efficient_attention: True
     logging_dir: "runs/dreambooth-model"
-    save_model_dir: "runs/dreambooth-model"
