@@ -73,7 +73,7 @@ if __name__ == "__main__":
         --custom_name Simon --custom_img_dir sample_images/simon_512 \
         --prefix "mdjrny-v4 kids story illustration" \
         --suffix "drawn by Rebecca Sugar, bright engaging children's illustration, digital painting, big eyes, beautiful shading, beautiful colors, amazon kdp, happy, interesting, 2D" \
-        --config_path config/dreambooth-sd1-5.yml
+        --config_path config/dreambooth-sd1-5.yml --device cuda:0
     """
     parser = argparse.ArgumentParser()
 
