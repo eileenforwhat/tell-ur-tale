@@ -1,0 +1,22 @@
+project_name: TuT
+authors: [eileenforwhat, simonseo, yuhsuanyeh]
+story_builder:
+  num_sentences: 10  # length of story in number of sentences
+  openai_api_key: "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"
+illustrator:
+  model_id: "runwayml/stable-diffusion-v1-5"  # ID of huggingface diffuser model
+  inference_steps: 50  # number of iterations of stable diffusion per image
+  prefix: "mdjrny-v4 Pixar movie capture of "
+  suffix: " low detail, unreal engine, symmetrical face, laurie greasley, akira toriyama, james gilleard, acrylic palette knife, 4k, vibrant colors, dusty haze, volumetric lighting, medieval"
+  negative_prompt: "bad anatomy, extra legs, extra arms, poorly drawn face, poorly drawn hands, poorly drawn feet, fat, disfigured, out of frame, long neck, bad hands, bad art, deformed, gun, double head, portrait"
+  custom_type: "dreambooth"
+  custom_args:
+    learning_rate: 1e-4
+    train_batch_size: 4
+    max_train_steps: 2000
+    train_text_encoder: True
+    class_prompt: "photo of a boy"
+    with_prior_preservation: True
+    mixed_precision: "no"
+    enable_xformers_memory_efficient_attention: True
+    logging_dir: "runs/dreambooth"
