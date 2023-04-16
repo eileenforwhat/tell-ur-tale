@@ -437,6 +437,7 @@ class DreamBoothTrainer(object):
         save_model_dir = save_model_dir or self.save_model_dir
         if save_model_dir:
             self.pipe.save_pretrained(save_model_dir)
+            print(f"saved model to {save_model_dir}")
 
         return self.pipe
 
