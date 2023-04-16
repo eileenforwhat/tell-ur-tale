@@ -39,11 +39,16 @@ class Illustrator(object):
 
         self.trainer.train(custom_characters)
 
-    def generate(self, pages: List[StoryPage]) -> List[StoryPage]:
+    def generate(self, pages: List[StoryPage], custom_characters: List[CustomCharacter]=None) -> List[StoryPage]:
         illustrated_pages = []
         self.pipe.to(self.device)
         for page in pages:
-            full_prompt = self.prompt_template % page.prompt
+            prompt = page.prompt
+            if self.trainer is not None and custom_characters is not None:
+                for character in custom_characters:
+                    placeholder_custom_token = self.trainer.get_placeholder_token(character.custom_name)
+                    prompt = prompt.replace(character.orig_name, placeholder_custom_token)
+            full_prompt = self.prompt_template % prompt
             print(full_prompt)
             image = self.pipe(full_prompt, negative_prompt=self.negative_prompt).images[0]
             illustrated_pages.append(dataclasses.replace(page, image=image))
@@ -128,5 +133,5 @@ if __name__ == "__main__":
         ]
         print("Custom characters: ", characters)
         illustrator.customize(characters)
-    images = illustrator.generate(pages)
+    images = illustrator.generate(pages, custom_characters=characters)
     write_story_pages(title, images, output_dir=output_dir)

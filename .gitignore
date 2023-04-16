@@ -2,3 +2,13 @@
 __pycache__/
 runs/*
 test/*
+sample_images/class_*
+static/output/
+output/*
+!output/goldilocks_and_the_three_bears
+!output/jack_and_the_beanstalk
+!output/little_red_riding_hood
+!output/short_fox
+!output/prompts
+!output/images
+text-inversion-model/
