@@ -18,8 +18,9 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm.auto import tqdm
-# from diffusers.loaders import AttnProcsLayers
-# from diffusers.models.attention_processor import LoRAAttnProcessor
+from diffusers.optimization import get_scheduler
+from diffusers.loaders import AttnProcsLayers
+from diffusers.models.attention_processor import LoRAAttnProcessor
 
 from utils import CustomCharacter
 
@@ -178,8 +179,10 @@ class DreamBoothTrainer(object):
         self.unet = pipe.unet
 
         if args["use_lora"]:
-            #TODO
-            pass
+            # We only train the additional adapter LoRA layers
+            self.vae.requires_grad_(False)
+            self.text_encoder.requires_grad_(False)
+            self.unet.requires_grad_(False)
         else:
             self.vae.requires_grad_(False)
             if not args["train_text_encoder"]:
@@ -224,25 +227,25 @@ class DreamBoothTrainer(object):
 
         if args["use_lora"]:
             # TODO (if use lora, train lora weights)
-            # lora_attn_procs = {}
-            # for name in unet.attn_processors.keys():
-            #     cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
-            #     if name.startswith("mid_block"):
-            #         hidden_size = unet.config.block_out_channels[-1]
-            #     elif name.startswith("up_blocks"):
-            #         block_id = int(name[len("up_blocks.")])
-            #         hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
-            #     elif name.startswith("down_blocks"):
-            #         block_id = int(name[len("down_blocks.")])
-            #         hidden_size = unet.config.block_out_channels[block_id]
-            #
-            #     lora_attn_procs[name] = LoRAAttnProcessor(hidden_size=hidden_size,
-            #                                               cross_attention_dim=cross_attention_dim)
-            #
-            # unet.set_attn_processor(lora_attn_procs)
-            # lora_layers = AttnProcsLayers(unet.attn_processors)
-            # params_to_optimize = # todo lora parameters
-            pass
+            lora_attn_procs = {}
+            for name in self.unet.attn_processors.keys():
+                cross_attention_dim = None if name.endswith("attn1.processor") else self.unet.config.cross_attention_dim
+                if name.startswith("mid_block"):
+                    hidden_size = self.unet.config.block_out_channels[-1]
+                elif name.startswith("up_blocks"):
+                    block_id = int(name[len("up_blocks.")])
+                    hidden_size = list(reversed(self.unet.config.block_out_channels))[block_id]
+                elif name.startswith("down_blocks"):
+                    block_id = int(name[len("down_blocks.")])
+                    hidden_size = self.unet.config.block_out_channels[block_id]
+            
+                lora_attn_procs[name] = LoRAAttnProcessor(hidden_size=hidden_size,
+                                                          cross_attention_dim=cross_attention_dim)
+            
+            self.unet.set_attn_processor(lora_attn_procs)
+            self.lora_layers = AttnProcsLayers(self.unet.attn_processors)
+            params_to_optimize = self.lora_layers.parameters() # todo lora parameters
+            self.accelerator.register_for_checkpointing(self.lora_layers)
         else:
             params_to_optimize = (
                 itertools.chain(self.unet.parameters(), self.text_encoder.parameters())
@@ -290,6 +293,7 @@ class DreamBoothTrainer(object):
         self.class_prompt = args["class_prompt"]
         self.num_class_images = args["num_class_images"]
         self.prior_loss_weight = args["prior_loss_weight"]
+        self.use_lora = args["use_lora"]
         print("Initialization finished.")
 
     def get_placeholder_token(self, text):
@@ -322,8 +326,20 @@ class DreamBoothTrainer(object):
             collate_fn=lambda examples: collate_fn(examples, self.with_prior_preservation),
         )
 
+        # lr_scheduler = get_scheduler(
+        #     args.lr_scheduler,
+        #     optimizer=self.optimizer,
+        #     num_warmup_steps=args.lr_warmup_steps * args.gradient_accumulation_steps,
+        #     num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
+        #     num_cycles=args.lr_num_cycles,
+        #     power=args.lr_power,
+        # )
         # Prepare everything with our `accelerator`.
         # TODO: add lora if true
+        if self.use_lora:
+            self.lora_layers, self.optimizer, train_dataloader = self.accelerator.prepare(
+                self.lora_layers, self.optimizer, train_dataloader
+            )
         if self.train_text_encoder:
             self.unet, self.text_encoder, self.optimizer, train_dataloader = self.accelerator.prepare(
                 self.unet, self.text_encoder, self.optimizer, train_dataloader
@@ -355,7 +371,7 @@ class DreamBoothTrainer(object):
 
         # Only show the progress bar once on each machine.
         dataloader_iter = iter(train_dataloader)
-        self.unet.train()
+        self.unet.train().to(self.device)
         if self.train_text_encoder:
             self.text_encoder.train()
         for step in tqdm(range(self.max_train_steps)):
@@ -413,8 +429,11 @@ class DreamBoothTrainer(object):
                     loss = loss + self.prior_loss_weight * prior_loss
                 else:
                     loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-
                 self.accelerator.backward(loss)
+                # if self.accelerator.sync_gradients:
+                #     params_to_clip = lora_layers.parameters()
+                #     self.accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
+                # lr_scheduler.step()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
@@ -426,21 +445,46 @@ class DreamBoothTrainer(object):
         self.pipe.text_encoder = self.accelerator.unwrap_model(self.text_encoder)
         self.pipe.unet = self.accelerator.unwrap_model(self.unet)
         save_model_dir = save_model_dir or self.save_model_dir
+        
         if save_model_dir:
-            self.pipe.save_pretrained(save_model_dir)
-
+            if self.use_lora:
+                self.unet = self.unet.to(torch.float32)
+                self.unet.save_attn_procs(save_model_dir)
+            else:
+                self.pipe.save_pretrained(save_model_dir)
+            
         return self.pipe
 
 
 if __name__ == "__main__":
     """
     python -m customization.dreambooth --train_batch_size 1  --max_train_steps 200 \
-        --enable_xformers_memory_efficient_attention 
+        --enable_xformers_memory_efficient_attention --use_lora True
     """
     parser = argparse.ArgumentParser()
 
     # train args
+    parser.add_argument("--use_lora", type=bool, default=True)
+    parser.add_argument("--only_inference", type=bool, default=False)
     parser.add_argument("--learning_rate", type=float, required=False, default=1e-4)
+    parser.add_argument(
+        "--lr_warmup_steps", type=int, default=500, help="Number of steps for the warmup in the lr scheduler."
+    )
+    parser.add_argument(
+        "--gradient_accumulation_steps",
+        type=int,
+        default=1,
+        help="Number of updates steps to accumulate before performing a backward/update pass.",
+    )
+    parser.add_argument(
+        "--lr_scheduler",
+        type=str,
+        default="constant",
+        help=(
+            'The scheduler type to use. Choose between ["linear", "cosine", "cosine_with_restarts", "polynomial",'
+            ' "constant", "constant_with_warmup"]'
+        ),
+    )
     parser.add_argument(
         "--train_text_encoder",
         action="store_true",
@@ -496,7 +540,7 @@ if __name__ == "__main__":
             raise ValueError("You must specify prompt for class images.")
     args = vars(args)  # make into dictionary
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda:1" if torch.cuda.is_available() else "cpu"
     base_model_id = "stabilityai/stable-diffusion-2"
     title = "Little Red Riding Hood"
     custom_characters = [
@@ -509,13 +553,19 @@ if __name__ == "__main__":
     weight_dtype = torch.float32
     if args["mixed_precision"] == "fp16":
         weight_dtype = torch.float16
-
+        
     trainer = DreamBoothTrainer(init_pipe_from=base_model_id, device=device, **args)
-    trainer.train(custom_characters, save_model_dir=args["logging_dir"])
+    if not args['only_inference']:
+        trainer.train(custom_characters, save_model_dir=args["logging_dir"])
 
     placeholder_token = trainer.get_placeholder_token(custom_characters[0].custom_name)
     prompt = f"{placeholder_token} met the girl wearing a red hood in the woods."
-    pipe = StableDiffusionPipeline.from_pretrained(args["logging_dir"], torch_dtype=weight_dtype).to(device)
+    if args["use_lora"]:
+        pipe = StableDiffusionPipeline.from_pretrained(base_model_id, revision=None, torch_dtype=weight_dtype).to(device)
+        pipe.unet.load_attn_procs(args["logging_dir"])
+    else:
+        pipe = StableDiffusionPipeline.from_pretrained(args["logging_dir"], torch_dtype=weight_dtype).to(device)
+    
     image = pipe(prompt).images[0]
     image.save(f"test/dreambooth_{prompt.strip('.')}.png")
 
