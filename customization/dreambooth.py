@@ -158,9 +158,9 @@ class DreamBoothTrainer(object):
             device_placement=False,
             mixed_precision=args["mixed_precision"],
             log_with=["tensorboard"],
-            logging_dir=args["logging_dir"]
+            logging_dir=args["custom_model_dir"]
         )
-        os.makedirs(args["logging_dir"], exist_ok=True)
+        os.makedirs(args["custom_model_dir"], exist_ok=True)
 
         if type(init_pipe_from) == StableDiffusionPipeline:
             pipe = init_pipe_from
@@ -225,7 +225,7 @@ class DreamBoothTrainer(object):
         else:
             optimizer_class = torch.optim.AdamW
 
-        # if args["use_lora"]:
+        if args["use_lora"]:
             # TODO (if use lora, train lora weights)
             lora_attn_procs = {}
             for name in self.unet.attn_processors.keys():
@@ -285,7 +285,7 @@ class DreamBoothTrainer(object):
         self.max_train_steps = args["max_train_steps"]
         self.train_batch_size = args["train_batch_size"]
         self.train_text_encoder = args["train_text_encoder"]
-        self.save_model_dir = args["logging_dir"]
+        self.save_model_dir = args["custom_model_dir"]
         os.makedirs(self.save_model_dir, exist_ok=True)
         # prior preservation loss
         self.with_prior_preservation = args["with_prior_preservation"]
@@ -457,18 +457,12 @@ class DreamBoothTrainer(object):
         save_model_dir = save_model_dir or self.save_model_dir
         
         if save_model_dir:
-<<<<<<< HEAD
             if self.use_lora:
                 self.unet = self.unet.to(torch.float32)
                 self.unet.save_attn_procs(save_model_dir)
             else:
                 self.pipe.save_pretrained(save_model_dir)
-            
-=======
-            self.pipe.save_pretrained(save_model_dir)
             print(f"saved model to {save_model_dir}")
-
->>>>>>> origin/main
         return self.pipe
 
 
@@ -548,7 +542,7 @@ if __name__ == "__main__":
     parser.add_argument("--enable_xformers_memory_efficient_attention", action="store_true")
 
     # logging
-    parser.add_argument("--logging_dir", type=str, required=False, default="runs/dreambooth-model")
+    parser.add_argument("--custom_model_dir", type=str, required=False, default="runs/dreambooth-model")
 
     args = parser.parse_args()
     if args.with_prior_preservation:
@@ -574,15 +568,15 @@ if __name__ == "__main__":
         
     trainer = DreamBoothTrainer(init_pipe_from=base_model_id, device=device, **args)
     if not args['only_inference']:
-        trainer.train(custom_characters, save_model_dir=args["logging_dir"])
+        trainer.train(custom_characters, save_model_dir=args["custom_model_dir"])
 
     placeholder_token = trainer.get_placeholder_token(custom_characters[0].custom_name)
     prompt = f"{placeholder_token} met the girl wearing a red hood in the woods."
     if args["use_lora"]:
         pipe = StableDiffusionPipeline.from_pretrained(base_model_id, revision=None, torch_dtype=weight_dtype).to(device)
-        pipe.unet.load_attn_procs(args["logging_dir"])
+        pipe.unet.load_attn_procs(args["custom_model_dir"])
     else:
-        pipe = StableDiffusionPipeline.from_pretrained(args["logging_dir"], torch_dtype=weight_dtype).to(device)
+        pipe = StableDiffusionPipeline.from_pretrained(args["custom_model_dir"], torch_dtype=weight_dtype).to(device)
     
     image = pipe(prompt).images[0]
     image.save(f"test/dreambooth_{prompt.strip('.')}.png")

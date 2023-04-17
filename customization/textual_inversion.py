@@ -163,7 +163,7 @@ class TextualInversionTrainer(object):
         self.accelerator = Accelerator(mixed_precision=args["mixed_precision"])
 
         # Handle the repository creation
-        os.makedirs(args["logging_dir"], exist_ok=True)
+        os.makedirs(args["custom_model_dir"], exist_ok=True)
 
         if type(init_pipe_from) == StableDiffusionPipeline:
             pipe = init_pipe_from
@@ -360,7 +360,7 @@ if __name__ == "__main__":
     parser.add_argument("--enable_xformers_memory_efficient_attention", action="store_true")
 
     # logging
-    parser.add_argument("--logging_dir", type=str, required=False, default="runs/text-inversion-model")
+    parser.add_argument("--custom_model_dir", type=str, required=False, default="runs/text-inversion-model")
 
     args = parser.parse_args()
     args = vars(args)  # make into dictionary
@@ -380,11 +380,11 @@ if __name__ == "__main__":
         weight_dtype = torch.float16
 
     trainer = TextualInversionTrainer(init_pipe_from=base_model_id, **args)
-    trainer.train(custom_characters, save_model_dir=args["logging_dir"])
+    trainer.train(custom_characters, save_model_dir=args["custom_model_dir"])
 
     placeholder_token = trainer.get_placeholder_token(custom_characters[0].custom_name)
     prompt = f"The {placeholder_token} met the girl wearing a red hood in the woods."
-    pipe = StableDiffusionPipeline.from_pretrained(args["logging_dir"], torch_dtype=weight_dtype).to(device)
+    pipe = StableDiffusionPipeline.from_pretrained(args["custom_model_dir"], torch_dtype=weight_dtype).to(device)
     image = pipe(prompt).images[0]
     image.save(f"test/inversion_{prompt.strip('.')}.png")
 

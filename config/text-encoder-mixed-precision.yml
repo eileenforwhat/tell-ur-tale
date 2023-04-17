@@ -23,5 +23,5 @@ illustrator:
     mixed_precision: fp16
     use_8bit_adam: True
     enable_xformers_memory_efficient_attention: True
-    logging_dir: "runs/text-encoder-mixed-precision"
+    custom_model_dir: "runs/text-encoder-mixed-precision"
     use_lora: False

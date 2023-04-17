@@ -17,6 +17,6 @@ illustrator:
     mixed_precision: "no"
     gradient_checkpointing: True
     enable_xformers_memory_efficient_attention: True
-    logging_dir: "runs/text-inversion-model"
+    custom_model_dir: "runs/text-inversion-model"
     train_text_encoder: False
     use_8bit_adam: False

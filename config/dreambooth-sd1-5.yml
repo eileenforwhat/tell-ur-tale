@@ -23,5 +23,5 @@ illustrator:
     mixed_precision: "no"
     use_8bit_adam: False
     enable_xformers_memory_efficient_attention: True
-    logging_dir: "runs/dreambooth-model"
+    custom_model_dir: "runs/dreambooth-model"
     use_lora: False

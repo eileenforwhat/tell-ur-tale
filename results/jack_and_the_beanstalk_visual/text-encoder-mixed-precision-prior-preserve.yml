@@ -1,0 +1,27 @@
+project_name: TuT
+authors: [eileenforwhat, simonseo, yuhsuanyeh]
+story_builder:
+  num_sentences: 10  # length of story in number of sentences
+  openai_api_key: "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"
+illustrator:
+  model_id: "runwayml/stable-diffusion-v1-5"  # ID of huggingface diffuser model
+  inference_steps: 50  # number of iterations of stable diffusion per image
+  prefix: "mdjrny-v4 kids illustration showcasing the story of 'Jack and the Beanstalk'"
+  suffix: "drawn by Rebecca Sugar, bright engaging children's illustration, digital painting, big eyes, beautiful shading, beautiful colors, amazon kdp, happy, interesting, 2D"
+  negative_prompt: "watermarks, bad anatomy, extra legs, extra arms, poorly drawn face, poorly drawn hands, poorly drawn feet, fat, disfigured, out of frame, long neck, bad hands, bad art, deformed, gun, double head, portrait"
+  custom_type: "dreambooth"
+  custom_args:
+    learning_rate: 0.0000002
+    train_batch_size: 2
+    max_train_steps: 2000
+    train_text_encoder: True
+    class_prompt: "portrait photo of a college student"
+    class_data_dir: "sample_images/class_college_student"
+    with_prior_preservation: True
+    prior_loss_weight: 50.0
+    num_class_images: 100
+    mixed_precision: fp16
+    use_8bit_adam: True
+    enable_xformers_memory_efficient_attention: True
+    custom_model_dir: "runs/text-precision-prior" # save customized model
+    use_lora: False
