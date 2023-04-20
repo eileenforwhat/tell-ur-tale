@@ -468,8 +468,9 @@ class DreamBoothTrainer(object):
 
 if __name__ == "__main__":
     """
-    python -m customization.dreambooth --train_batch_size 1  --max_train_steps 200 \
-        --enable_xformers_memory_efficient_attention --use_lora True
+    python -m customization.dreambooth --train_batch_size 1  --max_train_steps 2000 \
+        --enable_xformers_memory_efficient_attention --class_prompt "a photo of a dog" --class_data_dir sample_images/class_dog \
+        --with_prior_preservation --mixed_precision
     """
     parser = argparse.ArgumentParser()
 
@@ -552,12 +553,12 @@ if __name__ == "__main__":
             raise ValueError("You must specify prompt for class images.")
     args = vars(args)  # make into dictionary
 
-    device = "cuda:1" if torch.cuda.is_available() else "cpu"
-    base_model_id = "stabilityai/stable-diffusion-2"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    base_model_id = "stabilityai/stable-diffusion-v1-5"
     title = "Little Red Riding Hood"
     custom_characters = [
         CustomCharacter(
-            orig_name="wolf", orig_object="wolf", custom_name="Aspen", custom_img_dir="sample_images/aspen"
+            orig_name="wolf", orig_object="dog", custom_name="Aspen", custom_img_dir="sample_images/aspen_512"
         )
     ]
 
@@ -571,7 +572,8 @@ if __name__ == "__main__":
         trainer.train(custom_characters, save_model_dir=args["custom_model_dir"])
 
     placeholder_token = trainer.get_placeholder_token(custom_characters[0].custom_name)
-    prompt = f"{placeholder_token} met the girl wearing a red hood in the woods."
+
+    prompt = f"f{placeholder_token} facing a girl wearing a red hood in the woods, as anime illustration wondrous, expressive, by Hayao Miyazaki, by Studio Ghibli, cel-shaded, professional illustration, magical, dynamic, colorful, uhd, highly detailed, intricate, vivid colors"
     if args["use_lora"]:
         pipe = StableDiffusionPipeline.from_pretrained(base_model_id, revision=None, torch_dtype=weight_dtype).to(device)
         pipe.unet.load_attn_procs(args["custom_model_dir"])
@@ -582,7 +584,7 @@ if __name__ == "__main__":
     image.save(f"test/dreambooth_{prompt.strip('.')}.png")
 
     # without customization, for comparison
-    prompt = "The wolf met the girl wearing a red hood in the woods."
-    pipe = StableDiffusionPipeline.from_pretrained(base_model_id).to(device)
-    image = pipe(prompt).images[0]
-    image.save(f"test/baseline_{prompt.strip('.')}.png")
+    # prompt = "The wolf met the girl wearing a red hood in the woods, as anime illustration wondrous, expressive, by Hayao Miyazaki, by Studio Ghibli, cel-shaded, professional illustration, magical, dynamic, colorful, uhd, highly detailed, intricate, vivid colors"
+    # pipe = StableDiffusionPipeline.from_pretrained(base_model_id).to(device)
+    # image = pipe(prompt).images[0]
+    # image.save(f"test/baseline_{prompt.strip('.')}.png")
