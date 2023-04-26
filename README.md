@@ -3,6 +3,8 @@
 **Image Synthesis project: Customize storybooks** A pipeline from pretrained foundation models that are customized with 3-5 images and a
 text prompt given by the user to output a visual narrative.
 
+![sample output gif of pipeline](resource/simon_and_the_beanstalk.gif)
+
 ## 1 Motivation
 Recent advancements in generative models and LLMs, such as Stable Diffusion and ChatGPT, have ushered in a new
 wave of excitement for AI. We want to leverage this technology to enable applications that, up until recently, might
