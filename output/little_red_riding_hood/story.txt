@@ -1,5 +1,5 @@
 Little Red Riding Hood
-1. In a small house in the forest, Little Red Riding Hood lived with her grandmother. [Generate an image of the small house in the forest]
+1. In a small house in the forest, Little Red lived with her grandmother. [Generate an image of the small house in the forest]
 2. Little Red was a brave girl who loved to explore the woods. [Generate an image of Little Red exploring the woods]
 3. One day, Little Red's mother asked her to take a basket of treats to her sick grandmother. [Generate an image of Little Red holding the basket of treats]
 4. Little Red promised her mother she would not stray from the path through the woods. [Generate an image of Little Red on the path through the woods]

@@ -35,9 +35,11 @@ if __name__ == '__main__':
     """
     # run without illustrator, story saved to output/jack_and_the_beanstalk/story.txt
     python tut.py --title "Jack and the Beanstalk" --orig_name Jack --config_path config/story-only.yml
+    python tut.py --title "Avator: The Last Airbender" --orig_name Aang --config_path config/story-only.yml
     
     # run with baseline sd2 illustrator, story saved to output/jack_and_the_beanstalk/story.txt
     python tut.py --title "Little Red Riding Hood" --orig_name "Little Red Riding Hood" --config_path config/openjourney.yml
+    python tut.py --title "Avator: The Last Airbender" --orig_name "Aang" --config_path config/sd2.yml
     """
     parser = argparse.ArgumentParser()
 
