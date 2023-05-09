@@ -1,8 +1,9 @@
+torch
+accelerate
 diffusers
 transformers
 scipy
 ftfy
-accelerate
 openai
 pyyaml
 torchvision
