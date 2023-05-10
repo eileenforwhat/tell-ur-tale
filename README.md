@@ -1,5 +1,6 @@
 # Tell-Ur-Tale (TuT)
 ###### Chosen for "Audience Choice Award" 🥇
+###### Project website: [https://www.andrew.cmu.edu/course/16-726-sp23/projects/myunggus/project/](https://www.andrew.cmu.edu/course/16-726-sp23/projects/myunggus/project/)
 **Image Synthesis project: Customize storybooks** A pipeline from pretrained foundation models that are customized with 3-5 images and a
 text prompt given by the user to output a visual narrative.
 
